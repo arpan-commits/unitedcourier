@@ -3,169 +3,169 @@
 
 
 <style>
-:root {
-    --uwd-primary: #2563eb;
-    --uwd-primary-dark: #1d4ed8;
-    --uwd-text-main: #0f172a;
-    --uwd-text-muted: #64748b;
-    --uwd-bg: #ffffff;
-    --uwd-card-border: #e2e8f0;
-}
+    :root {
+        --uwd-primary: #2563eb;
+        --uwd-primary-dark: #1d4ed8;
+        --uwd-text-main: #0f172a;
+        --uwd-text-muted: #64748b;
+        --uwd-bg: #ffffff;
+        --uwd-card-border: #e2e8f0;
+    }
 
 
-.contact-container {
-    max-width: 1140px;
-    margin: 0 auto;
-    padding: 0 15px;
-}
+    .contact-container {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
 
-.contact-wrapper {
-    background: #fff;
-    border-radius: 30px;
-    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
-    border: 1px solid var(--uwd-card-border);
-}
+    .contact-wrapper {
+        background: #fff;
+        border-radius: 30px;
+        box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid var(--uwd-card-border);
+    }
 
-/* Left Side: Info Panel */
-.contact-info-panel {
-    background: linear-gradient(to right, #2563eb, #9333ea);
-    color: white;
-    padding: 50px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
+    /* Left Side: Info Panel */
+    .contact-info-panel {
+        background: linear-gradient(to right, #2563eb, #9333ea);
+        color: white;
+        padding: 50px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
 
-.info-item {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 35px;
-}
+    .info-item {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 35px;
+    }
 
-.info-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    flex-shrink: 0;
-}
+    .info-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
 
-.info-content h5 {
-    font-family: 'Outfit', sans-serif;
-    margin-bottom: 5px;
-    font-size: 1.1rem;
-}
+    .info-content h5 {
+        font-family: 'Outfit', sans-serif;
+        margin-bottom: 5px;
+        font-size: 1.1rem;
+    }
 
-.info-content p,
-.info-content a {
-    color: rgba(255, 255, 255, 0.8);
-    text-decoration: none;
-    margin-bottom: 0;
-    font-size: 0.95rem;
-}
+    .info-content p,
+    .info-content a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        margin-bottom: 0;
+        font-size: 0.95rem;
+    }
 
-.social-links {
-    margin-top: auto;
-    display: flex;
-    gap: 15px;
-    padding-top: 30px;
-}
+    .social-links {
+        margin-top: auto;
+        display: flex;
+        gap: 15px;
+        padding-top: 30px;
+    }
 
-.social-link {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    text-decoration: none;
-    transition: 0.3s;
-}
+    .social-link {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-decoration: none;
+        transition: 0.3s;
+    }
 
-.social-link:hover {
-    background: white;
-    color: var(--uwd-primary);
-    transform: translateY(-3px);
-}
+    .social-link:hover {
+        background: white;
+        color: var(--uwd-primary);
+        transform: translateY(-3px);
+    }
 
-/* Right Side: Form Panel */
-.contact-form-panel {
-    padding: 50px;
-}
-
-.form-label {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--uwd-text-main);
-    margin-bottom: 8px;
-}
-
-.form-control,
-.form-select {
-    padding: 12px 18px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    font-size: 0.95rem;
-    background-color: #f8fafc;
-}
-
-.form-control:focus {
-    background-color: #fff;
-    border-color: var(--uwd-primary);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}
-
-.btn-send {
-    background: var(--uwd-primary);
-    color: white;
-    border: none;
-    padding: 15px 30px;
-    border-radius: 12px;
-    font-weight: 700;
-    width: 100%;
-    transition: 0.3s;
-    margin-top: 10px;
-}
-
-.btn-send:hover {
-    background: var(--uwd-primary-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
-}
-
-/* Map Section Styling */
-.map-section {
-    width: 100%;
-    height: 400px;
-    border-top: 1px solid var(--uwd-card-border);
-    border-bottom: 1px solid var(--uwd-card-border);
-    filter: grayscale(10%) contrast(90%);
-}
-
-#form-success {
-    display: none;
-    text-align: center;
-    padding: 40px 0;
-}
-
-@media (max-width: 991px) {
-
-    .contact-info-panel,
+    /* Right Side: Form Panel */
     .contact-form-panel {
-        padding: 40px 30px;
+        padding: 50px;
     }
 
-    .map-section {
-        height: 300px;
+    .form-label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--uwd-text-main);
+        margin-bottom: 8px;
     }
-}
+
+    .form-control,
+    .form-select {
+        padding: 12px 18px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.95rem;
+        background-color: #f8fafc;
+    }
+
+    .form-control:focus {
+        background-color: #fff;
+        border-color: var(--uwd-primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+
+    .btn-send {
+        background: var(--uwd-primary);
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 12px;
+        font-weight: 700;
+        width: 100%;
+        transition: 0.3s;
+        margin-top: 10px;
+    }
+
+    .btn-send:hover {
+        background: var(--uwd-primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+    }
+
+    /* Map Section Styling */
+    .map-section {
+        width: 100%;
+        height: 400px;
+        border-top: 1px solid var(--uwd-card-border);
+        border-bottom: 1px solid var(--uwd-card-border);
+        filter: grayscale(10%) contrast(90%);
+    }
+
+    #form-success {
+        display: none;
+        text-align: center;
+        padding: 40px 0;
+    }
+
+    @media (max-width: 991px) {
+
+        .contact-info-panel,
+        .contact-form-panel {
+            padding: 40px 30px;
+        }
+
+        .map-section {
+            height: 300px;
+        }
+    }
 </style>
 
 
@@ -214,9 +214,9 @@
                         <div class="info-icon"><i class="fa-solid fa-phone"></i></div>
                         <div class="info-content">
                             <h5>Call Us</h5>
-                            @if($contactInfo->phone_numbers && count($contactInfo->phone_numbers) > 0)
-                                @foreach($contactInfo->phone_numbers as $phone)
-                                <p><a href="tel:{{ $phone }}">{{ $phone }}</a></p>
+                            @if ($contactInfo->phone_numbers && count($contactInfo->phone_numbers) > 0)
+                                @foreach ($contactInfo->phone_numbers as $phone)
+                                    <p><a href="tel:{{ $phone }}">{{ $phone }}</a></p>
                                 @endforeach
                             @else
                                 <p><a href="tel:+919999911176">+91-9999911176</a></p>
@@ -230,9 +230,9 @@
                         <div class="info-icon"><i class="fa-solid fa-envelope"></i></div>
                         <div class="info-content">
                             <h5>Email Us</h5>
-                            @if($contactInfo->email_addresses && count($contactInfo->email_addresses) > 0)
-                                @foreach($contactInfo->email_addresses as $email)
-                                <p><a href="mailto:{{ $email }}">{{ $email }}</a></p>
+                            @if ($contactInfo->email_addresses && count($contactInfo->email_addresses) > 0)
+                                @foreach ($contactInfo->email_addresses as $email)
+                                    <p><a href="mailto:{{ $email }}">{{ $email }}</a></p>
                                 @endforeach
                             @else
                                 <p><a href="mailto:info@unitedcouriers.biz">info@unitedcouriers.biz</a></p>
@@ -245,7 +245,8 @@
                         <div class="info-icon"><i class="fa-solid fa-location-dot"></i></div>
                         <div class="info-content">
                             <h5>Head Office</h5>
-                            <p>{{ $contactInfo->address ?? 'Building No. 1, Bypass Road, <br>Mahipalpur New Delhi -110037' }}</p>
+                            <p>{{ $contactInfo->address ?? 'Building No. 1, Bypass Road, <br>Mahipalpur New Delhi -110037' }}
+                            </p>
                         </div>
                     </div>
 
@@ -309,7 +310,8 @@
                         </div>
                         <h2 class="fw-bold">Sent Successfully</h2>
                         <p class="text-muted">Thank you for your message. Our team will get back to you shortly.</p>
-                        <button class="btn btn-outline-primary px-4 rounded-pill mt-3" onclick="location.reload()">Send
+                        <button class="btn btn-outline-primary px-4 rounded-pill mt-3"
+                            onclick="location.reload()">Send
                             another message</button>
                     </div>
                 </div>

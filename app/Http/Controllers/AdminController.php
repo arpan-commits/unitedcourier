@@ -4286,11 +4286,11 @@ class AdminController extends Controller
                 $pageMeta->status = 'Active';
             }
 
-            $pageMeta->content = [
+            $pageMeta->page_meta = json_encode([
                 'badge' => $request->input('badge'),
                 'title' => $request->input('title'),
                 'description' => $request->input('description'),
-            ];
+            ]);
             $pageMeta->save();
 
             return response()->json([
@@ -4434,7 +4434,6 @@ class AdminController extends Controller
                 'sort_order' => 'nullable|integer|min:0',
                 'status' => 'nullable|in:Active,Inactive',
             ]);
-
             $document->title = $request->title;
             $document->file_type = $request->file_type;
             $document->category = $request->category;
