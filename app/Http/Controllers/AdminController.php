@@ -2,19 +2,51 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AboutPageContent;
+use App\Models\Admin;
+use App\Models\BarcodeGeneratorPage;
+use App\Models\Blog;
+use App\Models\BlogCategory;
+use App\Models\ContactUsPage;
+use App\Models\CurrencyCalculatorPage;
+use App\Models\DocumentDownloadPage;
+use App\Models\Ebook;
+use App\Models\EcommerceLogisticsSolutionsPage;
+use App\Models\ExpressAirFreightSolutionsPage;
+use App\Models\FactNumberSectionCommonPage;
+use App\Models\Faq;
+use App\Models\FaqQuery;
+use App\Models\HsnFinderPage;
+use App\Models\NetworkOffice;
+use App\Models\PartnershipPage;
+use App\Models\PartnersSectionCommonPage;
+use App\Models\PrivacyPolicyPage;
+use App\Models\RefundAndCancellationPolicyPage;
+use App\Models\ServicePage;
+use App\Models\ShipmentInvoice;
+use App\Models\ShippingRateCalculatorPage;
+use App\Models\Subscriber;
+use App\Models\TermsAndConditionPage;
+use App\Models\TrackOrderPage;
+use App\Models\VolumetricCalculatorPage;
+use App\Models\WarehousingSolutionsPage;
+use App\Models\WebinarPage;
+use App\Models\WorldTimePage;
+use App\Models\WorldWeatherPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\NetworkOffice;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
 {
     public function index()
     {
         // Check if admin is authenticated
-        if (!Auth::guard('admin')->check()) {
+        if (! Auth::guard('admin')->check()) {
             return redirect()->route('admin.login')->with('error', 'Please login first');
         }
-        
+
         return view('admin.dashboard');
     }
 
@@ -24,7 +56,7 @@ class AdminController extends Controller
         if (Auth::guard('admin')->check()) {
             return redirect()->route('admin.dashboard');
         }
-        
+
         return view('admin.login');
     }
 
@@ -50,13 +82,100 @@ class AdminController extends Controller
         Auth::guard('admin')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        
+
         return redirect()->route('admin.login')->with('success', 'Logged out successfully!');
     }
 
     public function companies()
     {
-        return view('admin.companies');
+        // Fetch ALL shipments across all customers with related data
+        $shipments = DB::table('shipment_invoice')
+            ->join('shipper_info', 'shipment_invoice.shipper_id', '=', 'shipper_info.id')
+            ->leftJoin('customers', 'shipper_info.customer_id', '=', 'customers.id')
+            ->leftJoin('consignee_info', 'shipper_info.id', '=', 'consignee_info.shipper_id')
+            ->leftJoin('admin_user', 'shipment_invoice.assigned_delivery_person', '=', 'admin_user.id')
+            ->select(
+                'shipment_invoice.id',
+                'shipment_invoice.invoice_number',
+                'shipment_invoice.invoice_date',
+                'shipment_invoice.invoice_amount',
+                'shipment_invoice.incoterms',
+                'shipment_invoice.invoice_currency',
+                'shipment_invoice.reference_number',
+                'shipment_invoice.status',
+                'shipment_invoice.delivery_type',
+                'shipment_invoice.assigned_delivery_person',
+                'shipment_invoice.created_at',
+                'shipment_invoice.updated_at',
+                'shipper_info.id as shipper_id',
+                'shipper_info.company_name as shipper_company',
+                'shipper_info.contact_person as shipper_contact',
+                'shipper_info.city as shipper_city',
+                'shipper_info.state as shipper_state',
+                'shipper_info.awb_number',
+                'customers.id as customer_id',
+                'customers.first_name',
+                'customers.last_name',
+                'customers.email as customer_email',
+                'customers.phone_number as customer_phone',
+                'consignee_info.consignee_name',
+                'consignee_info.city as consignee_city',
+                'consignee_info.state as consignee_state',
+                'admin_user.name as delivery_person_name'
+            )
+            ->orderBy('shipment_invoice.created_at', 'desc')
+            ->get();
+
+        // Fetch delivery persons where type = 'Delivery_person'
+        $deliveryPersons = Admin::where('type', 'Delivery_person')
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'mobile']);
+
+        return view('admin.companies', compact('shipments', 'deliveryPersons'));
+    }
+
+    /**
+     * Assign delivery type and/or delivery person to a shipment.
+     */
+    public function assignDelivery(Request $request)
+    {
+        try {
+            $request->validate([
+                'shipment_id' => 'required|integer|exists:shipment_invoice,id',
+                'delivery_type' => 'required|string|in:DDU,DDP,Self',
+                'delivery_person_id' => 'nullable|integer|exists:admin_user,id',
+            ]);
+
+            $updateData = [
+                'delivery_type' => $request->delivery_type,
+            ];
+
+            // If Self is selected, assign delivery person; otherwise set to null
+            if ($request->delivery_type === 'Self') {
+                if (! $request->delivery_person_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Please select a delivery person for Self delivery type.',
+                    ]);
+                }
+                $updateData['assigned_delivery_person'] = $request->delivery_person_id;
+            } else {
+                $updateData['assigned_delivery_person'] = null;
+            }
+
+            ShipmentInvoice::where('id', $request->shipment_id)->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Delivery assignment saved successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: '.$e->getMessage(),
+            ]);
+        }
     }
 
     public function createShipment()
@@ -66,7 +185,8 @@ class AdminController extends Controller
 
     public function changeAboutUs()
     {
-        $aboutContent = \App\Models\AboutPageContent::all();
+        $aboutContent = AboutPageContent::all();
+
         return view('admin.change-about-us', ['aboutContent' => $aboutContent]);
     }
 
@@ -106,8 +226,8 @@ class AdminController extends Controller
                 'page_pin_codes' => 'nullable|string|max:255',
             ]);
 
-            $content = \App\Models\AboutPageContent::findOrFail($id);
-            
+            $content = AboutPageContent::findOrFail($id);
+
             $updateData = [
                 'title' => $request->title,
                 'subtitle' => $request->subtitle,
@@ -131,115 +251,117 @@ class AdminController extends Controller
             // Handle image upload separately
             if ($request->hasFile('image_file')) {
                 $image = $request->file('image_file');
-                
+
                 // Validate image
                 $request->validate([
                     'image_file' => 'image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
-                
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'website_images/' . $imageName;
-                
+
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'website_images/'.$imageName;
+
                 // Ensure directory exists
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
-                
+
                 // Move file
                 $image->move($uploadPath, $imageName);
                 $updateData['image'] = $imagePath;
             } else {
                 $updateData['image'] = $request->image;
             }
-            
+
             $content->update($updateData);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Content updated successfully!'
+                'message' => 'Content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteAboutContent($id)
     {
-        $content = \App\Models\AboutPageContent::findOrFail($id);
+        $content = AboutPageContent::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Content deleted successfully!'
+            'message' => 'Content deleted successfully!',
         ]);
     }
 
     public function changeHome()
     {
         $homeContent = \App\Models\HomePageContent::orderBy('sort_order')->get();
+
         return view('admin.change-home', ['homeContent' => $homeContent]);
     }
 
     public function getHomeContent($id)
     {
         $content = \App\Models\HomePageContent::findOrFail($id);
+
         return response()->json($content);
     }
 
     public function updateHomeContent(Request $request, $id)
     {
         $content = \App\Models\HomePageContent::findOrFail($id);
-        
+
         // Handle image deletion
         if ($request->has('delete_image') && $request->delete_image == 'true') {
             // Delete the actual image file if it exists
             $currentContent = $content->content;
             if (preg_match('/website_images\/(.+)/i', $currentContent, $matches)) {
-                $imagePath = public_path('public/website_images/' . $matches[1]);
+                $imagePath = public_path('public/website_images/'.$matches[1]);
                 if (file_exists($imagePath)) {
                     unlink($imagePath);
                 }
             }
-            
+
             // Clear content field
             $content->update([
-                'content' => ''
+                'content' => '',
             ]);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Image deleted successfully!'
+                'message' => 'Image deleted successfully!',
             ]);
         }
-        
+
         // Handle file upload
         if ($request->hasFile('image_upload')) {
             $request->validate([
-                'image_upload' => 'required|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048'
+                'image_upload' => 'required|image|mimes:jpeg,png,jpg,gif,webp,svg|max:2048',
             ]);
-            
+
             $file = $request->file('image_upload');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $filename = time().'_'.$file->getClientOriginalName();
             $path = $file->move(public_path('website_images'), $filename);
-            
+
             // Update content with new image path
             $content->update([
-                'content' => 'public/website_images/' . $filename
+                'content' => 'public/website_images/'.$filename,
             ]);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Image uploaded and content updated successfully!'
+                'message' => 'Image uploaded and content updated successfully!',
             ]);
         } else {
             // Handle regular content update
@@ -249,26 +371,26 @@ class AdminController extends Controller
                 'content' => 'required|string',
                 'sort_order' => 'required|integer|min:0',
             ]);
-            
+
             $content->update([
                 'section' => $request->section,
                 'field_name' => $request->field_name,
                 'content' => $request->content,
                 'sort_order' => $request->sort_order,
             ]);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Content updated successfully!'
+                'message' => 'Content updated successfully!',
             ]);
         }
     }
-    
+
     public function updateMultipleHomeContent(Request $request)
     {
         $request->validate([
             'content.*' => 'required|string',
-            'id.*' => 'required|integer|exists:home_page_contents,id'
+            'id.*' => 'required|integer|exists:home_page_contents,id',
         ]);
 
         $contents = $request->input('content');
@@ -277,33 +399,33 @@ class AdminController extends Controller
         foreach ($ids as $index => $id) {
             if (isset($contents[$index])) {
                 \App\Models\HomePageContent::where('id', $id)->update([
-                    'content' => $contents[$index]
+                    'content' => $contents[$index],
                 ]);
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Content updated successfully!'
+            'message' => 'Content updated successfully!',
         ]);
     }
 
     public function getAboutContent()
     {
         $content = [
-            'hero' => \App\Models\AboutPageContent::where('section_type', 'hero')->first(),
-            'stats' => \App\Models\AboutPageContent::where('section_type', 'stat')->orderBy('display_order')->get(),
-            'overview' => \App\Models\AboutPageContent::where('section_type', 'overview')->first(),
-            'missionVisionIntro' => \App\Models\AboutPageContent::where('section_type', 'mission_vision_intro')->first(),
-            'mission' => \App\Models\AboutPageContent::where('section_type', 'mission')->first(),
-            'vision' => \App\Models\AboutPageContent::where('section_type', 'vision')->first(),
-            'journeyIntro' => \App\Models\AboutPageContent::where('section_type', 'journey_intro')->first(),
-            'milestones' => \App\Models\AboutPageContent::where('section_type', 'milestone')->orderBy('display_order')->get(),
-            'testimonials' => \App\Models\AboutPageContent::where('section_type', 'testimonial')->orderBy('display_order')->get(),
-            'faqHeader' => \App\Models\AboutPageContent::where('section_type', 'faq_header')->first(),
-            'faqs' => \App\Models\AboutPageContent::where('section_type', 'faq')->orderBy('display_order')->get(),
-            'partners' => \App\Models\AboutPageContent::where('section_type', 'partner')->orderBy('display_order')->get(),
-            'newsletter' => \App\Models\AboutPageContent::where('section_type', 'newsletter_cta')->first(),
+            'hero' => AboutPageContent::where('section_type', 'hero')->first(),
+            'stats' => AboutPageContent::where('section_type', 'stat')->orderBy('display_order')->get(),
+            'overview' => AboutPageContent::where('section_type', 'overview')->first(),
+            'missionVisionIntro' => AboutPageContent::where('section_type', 'mission_vision_intro')->first(),
+            'mission' => AboutPageContent::where('section_type', 'mission')->first(),
+            'vision' => AboutPageContent::where('section_type', 'vision')->first(),
+            'journeyIntro' => AboutPageContent::where('section_type', 'journey_intro')->first(),
+            'milestones' => AboutPageContent::where('section_type', 'milestone')->orderBy('display_order')->get(),
+            'testimonials' => AboutPageContent::where('section_type', 'testimonial')->orderBy('display_order')->get(),
+            'faqHeader' => AboutPageContent::where('section_type', 'faq_header')->first(),
+            'faqs' => AboutPageContent::where('section_type', 'faq')->orderBy('display_order')->get(),
+            'partners' => AboutPageContent::where('section_type', 'partner')->orderBy('display_order')->get(),
+            'newsletter' => AboutPageContent::where('section_type', 'newsletter_cta')->first(),
         ];
 
         return response()->json($content);
@@ -318,19 +440,19 @@ class AdminController extends Controller
     {
         return view('admin.form-kyc');
     }
-    
+
     public function updateHome()
     {
         $homeContent = HomePageContent::orderBy('sort_order')->get();
-        
+
         return view('admin.change-home', compact('homeContent'));
     }
 
     public function updateServiceContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\ServicePage::findOrFail($id);
-            
+            $content = ServicePage::findOrFail($id);
+
             $updateData = [
                 'section' => $request->section,
                 'item_key' => $request->item_key,
@@ -340,7 +462,7 @@ class AdminController extends Controller
 
             // Handle content data based on section
             $contentData = [];
-            switch($request->section) {
+            switch ($request->section) {
                 case 'services':
                     $contentData = [
                         'title' => $request->input('content.title'),
@@ -360,7 +482,7 @@ class AdminController extends Controller
                         'link' => $request->input('content.link'),
                     ]);
                     break;
-                    
+
                 case 'testimonials':
                     $contentData = [
                         'name' => $request->input('content.name'),
@@ -373,7 +495,7 @@ class AdminController extends Controller
                     $updateData['avatar_url'] = $request->input('content.avatar');
                     $updateData['rating'] = (int) $request->input('content.rating');
                     break;
-                    
+
                 case 'faq':
                     $contentData = [
                         'question' => $request->input('content.question'),
@@ -382,7 +504,7 @@ class AdminController extends Controller
                     $updateData['question'] = $request->input('content.question');
                     $updateData['answer'] = $request->input('content.answer');
                     break;
-                    
+
                 case 'stats':
                     $contentData = [
                         'value' => $request->input('content.value'),
@@ -391,7 +513,7 @@ class AdminController extends Controller
                     $updateData['stat_value'] = $request->input('content.value');
                     $updateData['stat_label'] = $request->input('content.label');
                     break;
-                    
+
                 case 'partners':
                     $contentData = [
                         'name' => $request->input('content.name'),
@@ -403,38 +525,40 @@ class AdminController extends Controller
                     $updateData['alt_text'] = $request->input('content.alt');
                     break;
             }
-            
+
             $updateData['content'] = $contentData;
             $content->update($updateData);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Service content updated successfully!'
+                'message' => 'Service content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function volumetricCalculator()
     {
-        $volumetricCalculatorContent = \App\Models\VolumetricCalculatorPage::orderBy('sort_order')->get();
+        $volumetricCalculatorContent = VolumetricCalculatorPage::orderBy('sort_order')->get();
+
         return view('admin.change-volumetric-calculator-page', ['volumetricCalculatorContent' => $volumetricCalculatorContent]);
     }
 
     public function getVolumetricCalculatorContent($id)
     {
         try {
-            $content = \App\Models\VolumetricCalculatorPage::findOrFail($id);
+            $content = VolumetricCalculatorPage::findOrFail($id);
+
             return response()->json($content);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Content not found'], 404);
@@ -444,7 +568,7 @@ class AdminController extends Controller
     public function updateVolumetricCalculatorContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\VolumetricCalculatorPage::findOrFail($id);
+            $content = VolumetricCalculatorPage::findOrFail($id);
 
             // Always write to the data JSON column + normalized columns + data_extra,
             // because the frontend view reads from ALL THREE sources directly.
@@ -569,7 +693,7 @@ class AdminController extends Controller
                     if ($parsed === null && json_last_error() !== JSON_ERROR_NONE) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Invalid JSON for calculator data: ' . json_last_error_msg(),
+                            'message' => 'Invalid JSON for calculator data: '.json_last_error_msg(),
                         ]);
                     }
                     $contentData = $parsed;
@@ -588,35 +712,36 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Volumetric calculator content updated successfully!'
+                'message' => 'Volumetric calculator content updated successfully!',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteVolumetricCalculatorContent($id)
     {
-        $content = \App\Models\VolumetricCalculatorPage::findOrFail($id);
+        $content = VolumetricCalculatorPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Volumetric calculator content deleted successfully!'
+            'message' => 'Volumetric calculator content deleted successfully!',
         ]);
     }
 
     public function changeTermsAndConditions()
     {
-        $termsContent = \App\Models\TermsAndConditionPage::ordered()->get();
+        $termsContent = TermsAndConditionPage::ordered()->get();
+
         return view('admin.change-terms-and-conditions', ['termsContent' => $termsContent]);
     }
 
@@ -633,7 +758,7 @@ class AdminController extends Controller
                 'footer_email' => 'nullable|email|max:255',
             ]);
 
-            $termsContent = new \App\Models\TermsAndConditionPage();
+            $termsContent = new TermsAndConditionPage;
             $termsContent->section_key = $request->section_key;
             $termsContent->title = $request->title;
             $termsContent->paragraphs = $request->paragraphs;
@@ -650,18 +775,18 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Terms and conditions content added successfully!'
+                'message' => 'Terms and conditions content added successfully!',
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -669,14 +794,14 @@ class AdminController extends Controller
     public function updateTermsAndConditionsContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\TermsAndConditionPage::findOrFail($id);
-            
+            $content = TermsAndConditionPage::findOrFail($id);
+
             $updateData = [
                 'title' => $request->title,
                 'paragraphs' => $request->paragraphs,
-            'sort_order' => $request->sort_order,
+                'sort_order' => $request->sort_order,
             ];
-    
+
             // Handle page meta data
             if ($content->section_key === '_page_meta') {
                 $updateData['effective_date'] = $request->effective_date;
@@ -685,33 +810,33 @@ class AdminController extends Controller
             }
 
             $content->update($updateData);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Terms and conditions content updated successfully!'
+                'message' => 'Terms and conditions content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteTermsAndConditionsContent($id)
     {
-        $content = \App\Models\TermsAndConditionPage::findOrFail($id);
+        $content = TermsAndConditionPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Terms and conditions content deleted successfully!'
+            'message' => 'Terms and conditions content deleted successfully!',
         ]);
     }
 
@@ -728,7 +853,7 @@ class AdminController extends Controller
                 'footer_email' => 'nullable|email|max:255',
             ]);
 
-            $privacyContent = new \App\Models\PrivacyPolicyPage();
+            $privacyContent = new PrivacyPolicyPage;
             $privacyContent->section_key = $request->section_key;
             $privacyContent->title = $request->title;
             $privacyContent->paragraphs = $request->paragraphs;
@@ -745,33 +870,34 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Privacy policy content added successfully!'
+                'message' => 'Privacy policy content added successfully!',
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function changePrivacyPolicy()
     {
-        $privacyContent = \App\Models\PrivacyPolicyPage::ordered()->get();
+        $privacyContent = PrivacyPolicyPage::ordered()->get();
+
         return view('admin.change-privacy-policy', ['privacyContent' => $privacyContent]);
     }
 
     public function updatePrivacyPolicyContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\PrivacyPolicyPage::findOrFail($id);
-            
+            $content = PrivacyPolicyPage::findOrFail($id);
+
             $updateData = [
                 'title' => $request->title,
                 'paragraphs' => $request->paragraphs,
@@ -786,53 +912,55 @@ class AdminController extends Controller
             }
 
             $content->update($updateData);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Privacy policy content updated successfully!'
+                'message' => 'Privacy policy content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deletePrivacyPolicyContent($id)
     {
-        $content = \App\Models\PrivacyPolicyPage::findOrFail($id);
+        $content = PrivacyPolicyPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Privacy policy content deleted successfully!'
+            'message' => 'Privacy policy content deleted successfully!',
         ]);
     }
 
     public function changeRefundAndCancellationPolicy()
     {
-        $refundContent = \App\Models\RefundAndCancellationPolicyPage::ordered()->get();
+        $refundContent = RefundAndCancellationPolicyPage::ordered()->get();
+
         return view('admin.change-refund-and-cancellation-policy', ['refundContent' => $refundContent]);
     }
 
     public function changeContactPage()
     {
-        $contactContent = \App\Models\ContactUsPage::ordered()->get();
+        $contactContent = ContactUsPage::ordered()->get();
+
         return view('admin.change-contact-page', ['contactContent' => $contactContent]);
     }
 
     public function updateContactPageContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\ContactUsPage::findOrFail($id);
-            
+            $content = ContactUsPage::findOrFail($id);
+
             $updateData = [
                 'section_key' => $request->section_key,
                 'title' => $request->title,
@@ -845,7 +973,7 @@ class AdminController extends Controller
             // Handle phone numbers as newline-separated text (phone_numbers_text column)
             if ($request->has('phone_numbers')) {
                 $phoneNumbers = $request->input('phone_numbers');
-                
+
                 if (is_string($phoneNumbers)) {
                     $decoded = json_decode($phoneNumbers, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -863,7 +991,7 @@ class AdminController extends Controller
             // Handle email addresses as newline-separated text (email_addresses_text column)
             if ($request->has('email_addresses')) {
                 $emailAddresses = $request->input('email_addresses');
-                
+
                 if (is_string($emailAddresses)) {
                     $decoded = json_decode($emailAddresses, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -881,7 +1009,7 @@ class AdminController extends Controller
             // Handle list items as newline-separated text (list_items_text column)
             if ($request->has('list_items')) {
                 $listItems = $request->input('list_items');
-                
+
                 if (is_string($listItems)) {
                     $decoded = json_decode($listItems, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -899,7 +1027,7 @@ class AdminController extends Controller
             // Handle social links as JSON-encoded text (social_links_text column)
             if ($request->has('social_links')) {
                 $socialLinks = $request->input('social_links');
-                
+
                 if (is_string($socialLinks)) {
                     $decoded = json_decode($socialLinks, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
@@ -915,47 +1043,48 @@ class AdminController extends Controller
             }
 
             $content->update($updateData);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Contact page content updated successfully!'
+                'message' => 'Contact page content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteContactPageContent($id)
     {
-        $content = \App\Models\ContactUsPage::findOrFail($id);
+        $content = ContactUsPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Contact page content deleted successfully!'
+            'message' => 'Contact page content deleted successfully!',
         ]);
     }
 
     public function changeWarehousingSolutions()
     {
-        $warehousingContent = \App\Models\WarehousingSolutionsPage::ordered()->get();
+        $warehousingContent = WarehousingSolutionsPage::ordered()->get();
+
         return view('admin.change-warehousing-solutions', ['warehousingContent' => $warehousingContent]);
     }
 
     public function storeWarehousingSolutionsContent(Request $request)
     {
         try {
-            $newContent = new \App\Models\WarehousingSolutionsPage();
-            
+            $newContent = new WarehousingSolutionsPage;
+
             $storeData = [
                 'section' => $request->section === 'features_header' ? 'features' : $request->section,
                 'item_key' => $request->item_key,
@@ -964,7 +1093,7 @@ class AdminController extends Controller
             ];
 
             $contentData = [];
-            switch($request->section) {
+            switch ($request->section) {
                 case 'hero':
                     $listItems = $request->input('content.list_items');
                     if (is_string($listItems)) {
@@ -1076,12 +1205,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Warehousing solutions content stored successfully!'
+                'message' => 'Warehousing solutions content stored successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1089,8 +1218,8 @@ class AdminController extends Controller
     public function updateWarehousingSolutionsContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\WarehousingSolutionsPage::findOrFail($id);
-            
+            $content = WarehousingSolutionsPage::findOrFail($id);
+
             $updateData = [
                 'section' => $request->section === 'features_header' ? 'features' : $request->section,
                 'item_key' => $request->item_key,
@@ -1100,7 +1229,7 @@ class AdminController extends Controller
 
             // Handle content data based on section
             $contentData = [];
-            switch($request->section) {
+            switch ($request->section) {
                 case 'hero':
                     $listItems = $request->input('content.list_items');
                     if (is_string($listItems)) {
@@ -1121,7 +1250,7 @@ class AdminController extends Controller
                     $updateData['paragraphs'] = $request->input('content.paragraphs');
                     $updateData['subtitle'] = $request->input('content.subtitle');
                     break;
-                    
+
                 case 'stats':
                     $contentData = [
                         'stat_number' => $request->input('content.stat_number'),
@@ -1129,7 +1258,7 @@ class AdminController extends Controller
                         'suffix' => $request->input('content.suffix'),
                     ];
                     break;
-                    
+
                 case 'overview':
                     $listItems = $request->input('content.list_items');
                     if (is_string($listItems)) {
@@ -1148,7 +1277,7 @@ class AdminController extends Controller
                     $updateData['paragraphs'] = $request->input('content.paragraphs');
                     $updateData['subtitle'] = $request->input('content.subtitle');
                     break;
-                    
+
                 case 'features_header':
                     $contentData = [
                         'title' => $request->input('content.title'),
@@ -1170,14 +1299,14 @@ class AdminController extends Controller
                     $updateData['paragraphs'] = $request->input('content.paragraphs');
                     $updateData['subtitle'] = $request->input('content.subtitle');
                     break;
-                    
+
                 case 'faq':
                     $contentData = [
                         'question' => $request->input('content.question'),
                         'answer' => $request->input('content.answer'),
                     ];
                     break;
-                    
+
                 case 'cta':
                     $contentData = [
                         'title' => $request->input('content.title'),
@@ -1188,14 +1317,14 @@ class AdminController extends Controller
                     // Also populate normalized columns
                     $updateData['subtitle'] = $request->input('content.subtitle');
                     break;
-                    
+
                 default:
                     $rawJson = $request->input('content.json');
                     $parsed = json_decode($rawJson, true);
                     $contentData = $parsed !== null ? $parsed : [];
                     break;
             }
-            
+
             $updateData['content'] = $contentData;
 
             // Handle extra_content as a JSON string
@@ -1215,43 +1344,45 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Warehousing solutions content updated successfully!'
+                'message' => 'Warehousing solutions content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteWarehousingSolutionsContent($id)
     {
-        $content = \App\Models\WarehousingSolutionsPage::findOrFail($id);
+        $content = WarehousingSolutionsPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Warehousing solutions content deleted successfully!'
+            'message' => 'Warehousing solutions content deleted successfully!',
         ]);
     }
 
     public function changeEcommerceLogisticsSolutions()
     {
-        $ecommerceContent = \App\Models\EcommerceLogisticsSolutionsPage::ordered()->get();
+        $ecommerceContent = EcommerceLogisticsSolutionsPage::ordered()->get();
+
         return view('admin.change-e-commerce-logistics-solutions', ['ecommerceContent' => $ecommerceContent]);
     }
 
     public function getEcommerceLogisticsSolutionsContent($id)
     {
         try {
-            $content = \App\Models\EcommerceLogisticsSolutionsPage::findOrFail($id);
+            $content = EcommerceLogisticsSolutionsPage::findOrFail($id);
+
             return response()->json($content);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Content not found'], 404);
@@ -1261,8 +1392,8 @@ class AdminController extends Controller
     public function storeEcommerceLogisticsSolutionsContent(Request $request)
     {
         try {
-            $newContent = new \App\Models\EcommerceLogisticsSolutionsPage();
-            
+            $newContent = new EcommerceLogisticsSolutionsPage;
+
             $storeData = [
                 'section' => $request->section,
                 'item_key' => $request->item_key,
@@ -1276,7 +1407,7 @@ class AdminController extends Controller
             $contentData = [];
             $extraContentData = [];
 
-            switch($request->section) {
+            switch ($request->section) {
                 case 'hero':
                     $columnData['badge_text'] = $request->input('content.badge_text');
                     $contentData = [
@@ -1341,7 +1472,7 @@ class AdminController extends Controller
                     $checkList = $request->input('content.check_list');
                     if (is_array($checkList)) {
                         $columnData['check_list_text'] = implode("\n", $checkList);
-                    } elseif (is_string($checkList) && !empty($checkList)) {
+                    } elseif (is_string($checkList) && ! empty($checkList)) {
                         $items = array_map('trim', explode("\n", $checkList));
                         $items = array_filter($items);
                         $columnData['check_list_text'] = implode("\n", $items);
@@ -1405,29 +1536,35 @@ class AdminController extends Controller
             }
 
             // Filter out null/empty string values (preserve empty arrays like [] for badges)
-            $contentData = array_filter($contentData, function($v) { return $v !== null && $v !== ''; });
-            $extraContentData = array_filter($extraContentData, function($v) { return $v !== null && $v !== ''; });
-            $columnData = array_filter($columnData, function($v) { return $v !== null && $v !== ''; });
+            $contentData = array_filter($contentData, function ($v) {
+                return $v !== null && $v !== '';
+            });
+            $extraContentData = array_filter($extraContentData, function ($v) {
+                return $v !== null && $v !== '';
+            });
+            $columnData = array_filter($columnData, function ($v) {
+                return $v !== null && $v !== '';
+            });
 
             // Merge: columns go directly, content JSON if any, extra_content if any
             $storeData = array_merge($storeData, $columnData);
-            if (!empty($contentData)) {
+            if (! empty($contentData)) {
                 $storeData['content'] = $contentData;
             }
             // Always set extra_content so stale seeder data gets overwritten
-            $storeData['extra_content'] = !empty($extraContentData) ? json_encode($extraContentData) : json_encode(new \stdClass());
+            $storeData['extra_content'] = ! empty($extraContentData) ? json_encode($extraContentData) : json_encode(new \stdClass);
 
             $newContent->fill($storeData);
             $newContent->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'E-commerce logistics solutions content stored successfully!'
+                'message' => 'E-commerce logistics solutions content stored successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1435,8 +1572,8 @@ class AdminController extends Controller
     public function updateEcommerceLogisticsSolutionsContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\EcommerceLogisticsSolutionsPage::findOrFail($id);
-            
+            $content = EcommerceLogisticsSolutionsPage::findOrFail($id);
+
             $updateData = [
                 'section' => $request->section,
                 'item_key' => $request->item_key,
@@ -1450,7 +1587,7 @@ class AdminController extends Controller
             $contentData = [];
             $extraContentData = [];
 
-            switch($request->section) {
+            switch ($request->section) {
                 case 'hero':
                     $columnData['badge_text'] = $request->input('content.badge_text');
                     $contentData = [
@@ -1513,7 +1650,7 @@ class AdminController extends Controller
                     $checkList = $request->input('content.check_list');
                     if (is_array($checkList)) {
                         $columnData['check_list_text'] = implode("\n", $checkList);
-                    } elseif (is_string($checkList) && !empty($checkList)) {
+                    } elseif (is_string($checkList) && ! empty($checkList)) {
                         $items = array_map('trim', explode("\n", $checkList));
                         $items = array_filter($items);
                         $columnData['check_list_text'] = implode("\n", $items);
@@ -1577,48 +1714,54 @@ class AdminController extends Controller
             }
 
             // Filter out null/empty string values (preserve empty arrays like [] for badges)
-            $contentData = array_filter($contentData, function($v) { return $v !== null && $v !== ''; });
-            $extraContentData = array_filter($extraContentData, function($v) { return $v !== null && $v !== ''; });
-            $columnData = array_filter($columnData, function($v) { return $v !== null && $v !== ''; });
+            $contentData = array_filter($contentData, function ($v) {
+                return $v !== null && $v !== '';
+            });
+            $extraContentData = array_filter($extraContentData, function ($v) {
+                return $v !== null && $v !== '';
+            });
+            $columnData = array_filter($columnData, function ($v) {
+                return $v !== null && $v !== '';
+            });
 
             // Merge: columns go directly, content JSON if any, extra_content if any
             $updateData = array_merge($updateData, $columnData);
-            if (!empty($contentData)) {
+            if (! empty($contentData)) {
                 $updateData['content'] = $contentData;
             }
             // Always set extra_content so stale seeder data gets overwritten
-            $updateData['extra_content'] = !empty($extraContentData) ? json_encode($extraContentData) : json_encode(new \stdClass());
+            $updateData['extra_content'] = ! empty($extraContentData) ? json_encode($extraContentData) : json_encode(new \stdClass);
 
             $content->update($updateData);
 
             return response()->json([
                 'success' => true,
-                'message' => 'E-commerce logistics solutions content updated successfully!'
+                'message' => 'E-commerce logistics solutions content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteEcommerceLogisticsSolutionsContent($id)
     {
-        $content = \App\Models\EcommerceLogisticsSolutionsPage::findOrFail($id);
+        $content = EcommerceLogisticsSolutionsPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'E-commerce logistics solutions content deleted successfully!'
+            'message' => 'E-commerce logistics solutions content deleted successfully!',
         ]);
     }
 
     public function updateRefundAndCancellationPolicyContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\RefundAndCancellationPolicyPage::findOrFail($id);
-            
+            $content = RefundAndCancellationPolicyPage::findOrFail($id);
+
             $updateData = [
                 'title' => $request->title,
                 'paragraphs' => $request->paragraphs,
@@ -1633,33 +1776,33 @@ class AdminController extends Controller
             }
 
             $content->update($updateData);
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Refund and cancellation policy content updated successfully!'
+                'message' => 'Refund and cancellation policy content updated successfully!',
             ]);
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteRefundAndCancellationPolicyContent($id)
     {
-        $content = \App\Models\RefundAndCancellationPolicyPage::findOrFail($id);
+        $content = RefundAndCancellationPolicyPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Refund and cancellation policy content deleted successfully!'
+            'message' => 'Refund and cancellation policy content deleted successfully!',
         ]);
     }
 
@@ -1668,8 +1811,8 @@ class AdminController extends Controller
     {
         $indiaOffices = NetworkOffice::india()->ordered()->get();
         $overseasOffices = NetworkOffice::overseas()->ordered()->get();
-        $faqs = \App\Models\Faq::byPage('network')->ordered()->get();
-        
+        $faqs = Faq::byPage('network')->ordered()->get();
+
         return view('admin.change-network', compact('indiaOffices', 'overseasOffices', 'faqs'));
     }
 
@@ -1677,16 +1820,16 @@ class AdminController extends Controller
     {
         try {
             $office = NetworkOffice::create($request->all());
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Network office added successfully!',
-                'office' => $office
+                'office' => $office,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1696,16 +1839,16 @@ class AdminController extends Controller
         try {
             $office = NetworkOffice::findOrFail($id);
             $office->update($request->all());
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Network office updated successfully!',
-                'office' => $office
+                'office' => $office,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1715,15 +1858,15 @@ class AdminController extends Controller
         try {
             $office = NetworkOffice::findOrFail($id);
             $office->delete();
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Network office deleted successfully!'
+                'message' => 'Network office deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1731,7 +1874,7 @@ class AdminController extends Controller
     // FAQ Management Methods
     public function faq()
     {
-        $faqs = \App\Models\Faq::orderBy('page')->orderBy('sort_order')->orderBy('id')->get();
+        $faqs = Faq::orderBy('page')->orderBy('sort_order')->orderBy('id')->get();
         $faqsByPage = $faqs->groupBy('page');
 
         $pageNames = [
@@ -1757,16 +1900,17 @@ class AdminController extends Controller
     public function storeFaq(Request $request)
     {
         try {
-            $faq = \App\Models\Faq::create($request->all());
+            $faq = Faq::create($request->all());
+
             return response()->json([
                 'success' => true,
                 'message' => 'FAQ added successfully!',
-                'faq' => $faq
+                'faq' => $faq,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1774,17 +1918,18 @@ class AdminController extends Controller
     public function updateFaq(Request $request, $id)
     {
         try {
-            $faq = \App\Models\Faq::findOrFail($id);
+            $faq = Faq::findOrFail($id);
             $faq->update($request->all());
+
             return response()->json([
                 'success' => true,
                 'message' => 'FAQ updated successfully!',
-                'faq' => $faq
+                'faq' => $faq,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1792,16 +1937,17 @@ class AdminController extends Controller
     public function deleteFaq($id)
     {
         try {
-            $faq = \App\Models\Faq::findOrFail($id);
+            $faq = Faq::findOrFail($id);
             $faq->delete();
+
             return response()->json([
                 'success' => true,
-                'message' => 'FAQ deleted successfully!'
+                'message' => 'FAQ deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1809,23 +1955,26 @@ class AdminController extends Controller
     // Blog Management Methods
     public function changeBlog()
     {
-        $blogs = \App\Models\Blog::with('category')->orderBy('created_at', 'desc')->get();
-        $categories = \App\Models\BlogCategory::active()->get();
+        $blogs = Blog::with('category')->orderBy('created_at', 'desc')->get();
+        $categories = BlogCategory::active()->get();
+
         return view('admin.change-blog', compact('blogs', 'categories'));
     }
 
     public function createBlog()
     {
-        $blog = new \App\Models\Blog();
-        $categories = \App\Models\BlogCategory::active()->get();
+        $blog = new Blog;
+        $categories = BlogCategory::active()->get();
+
         return view('admin.edit-blog', compact('blog', 'categories'));
     }
 
     public function editBlog($id)
     {
         try {
-            $blog = \App\Models\Blog::with('category')->findOrFail($id);
-            $categories = \App\Models\BlogCategory::active()->get();
+            $blog = Blog::with('category')->findOrFail($id);
+            $categories = BlogCategory::active()->get();
+
             return view('admin.edit-blog', compact('blog', 'categories'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-blog')
@@ -1836,15 +1985,16 @@ class AdminController extends Controller
     public function getBlog($id)
     {
         try {
-            $blog = \App\Models\Blog::with('category')->findOrFail($id);
+            $blog = Blog::with('category')->findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'blog' => $blog
+                'blog' => $blog,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Blog post not found: ' . $e->getMessage()
+                'message' => 'Blog post not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -1881,7 +2031,7 @@ class AdminController extends Controller
                 'feed' => 'nullable|string',
             ]);
 
-            $blog = new \App\Models\Blog();
+            $blog = new Blog;
             $blog->fill($request->except(['master_image', 'author_image']));
 
             // Handle master image file upload
@@ -1890,10 +2040,10 @@ class AdminController extends Controller
                     'master_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('master_image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -1906,10 +2056,10 @@ class AdminController extends Controller
                     'author_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $avatar = $request->file('author_image');
-                $avatarName = time() . '_' . str_replace(' ', '_', $avatar->getClientOriginalName());
-                $avatarPath = 'public/website_images/' . $avatarName;
+                $avatarName = time().'_'.str_replace(' ', '_', $avatar->getClientOriginalName());
+                $avatarPath = 'public/website_images/'.$avatarName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $avatar->move($uploadPath, $avatarName);
@@ -1924,12 +2074,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Blog post created successfully!',
-                'blog_id' => $blog->id
+                'blog_id' => $blog->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -1940,7 +2090,7 @@ class AdminController extends Controller
             $request->validate([
                 'blog_title' => 'required|string|max:255',
                 'url_title' => 'required|string|max:255',
-                'slug' => 'required|string|max:255|unique:blogs,slug,' . $id,
+                'slug' => 'required|string|max:255|unique:blogs,slug,'.$id,
                 'category_id' => 'nullable|exists:blog_categories,id',
                 'sub_heading' => 'nullable|string|max:255',
                 'sub_content' => 'nullable|string',
@@ -1966,7 +2116,7 @@ class AdminController extends Controller
                 'feed' => 'nullable|string',
             ]);
 
-            $blog = \App\Models\Blog::findOrFail($id);
+            $blog = Blog::findOrFail($id);
             $blog->fill($request->except(['master_image', 'author_image']));
 
             // Handle master image file upload
@@ -1975,10 +2125,10 @@ class AdminController extends Controller
                     'master_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('master_image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -1991,10 +2141,10 @@ class AdminController extends Controller
                     'author_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $avatar = $request->file('author_image');
-                $avatarName = time() . '_' . str_replace(' ', '_', $avatar->getClientOriginalName());
-                $avatarPath = 'public/website_images/' . $avatarName;
+                $avatarName = time().'_'.str_replace(' ', '_', $avatar->getClientOriginalName());
+                $avatarPath = 'public/website_images/'.$avatarName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $avatar->move($uploadPath, $avatarName);
@@ -2008,12 +2158,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Blog post updated successfully!'
+                'message' => 'Blog post updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2021,17 +2171,17 @@ class AdminController extends Controller
     public function deleteBlog($id)
     {
         try {
-            $blog = \App\Models\Blog::findOrFail($id);
+            $blog = Blog::findOrFail($id);
             $blog->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Blog post deleted successfully!'
+                'message' => 'Blog post deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2040,20 +2190,23 @@ class AdminController extends Controller
 
     public function changeEbook()
     {
-        $ebooks = \App\Models\Ebook::ordered()->get();
+        $ebooks = Ebook::ordered()->get();
+
         return view('admin.change-ebook', compact('ebooks'));
     }
 
     public function createEbook()
     {
-        $ebook = new \App\Models\Ebook();
+        $ebook = new Ebook;
+
         return view('admin.edit-ebook', compact('ebook'));
     }
 
     public function editEbook($id)
     {
         try {
-            $ebook = \App\Models\Ebook::findOrFail($id);
+            $ebook = Ebook::findOrFail($id);
+
             return view('admin.edit-ebook', compact('ebook'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-ebook')
@@ -2064,15 +2217,16 @@ class AdminController extends Controller
     public function getEbook($id)
     {
         try {
-            $ebook = \App\Models\Ebook::findOrFail($id);
+            $ebook = Ebook::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'ebook' => $ebook
+                'ebook' => $ebook,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'E-book not found: ' . $e->getMessage()
+                'message' => 'E-book not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -2088,7 +2242,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $ebook = new \App\Models\Ebook();
+            $ebook = new Ebook;
             $ebook->fill($request->except(['image', 'link']));
 
             // Explicitly set as an e-book item (not page content)
@@ -2099,10 +2253,10 @@ class AdminController extends Controller
             // Handle PDF file upload
             if ($request->hasFile('link')) {
                 $pdf = $request->file('link');
-                $pdfName = time() . '_' . str_replace(' ', '_', $pdf->getClientOriginalName());
-                $pdfPath = 'ebook_pdf/' . $pdfName;
+                $pdfName = time().'_'.str_replace(' ', '_', $pdf->getClientOriginalName());
+                $pdfPath = 'ebook_pdf/'.$pdfName;
                 $uploadPath = public_path('ebook_pdf');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $pdf->move($uploadPath, $pdfName);
@@ -2115,10 +2269,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2132,12 +2286,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'E-book created successfully!',
-                'ebook_id' => $ebook->id
+                'ebook_id' => $ebook->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2145,7 +2299,7 @@ class AdminController extends Controller
     public function updateEbook(Request $request, $id)
     {
         try {
-            $ebook = \App\Models\Ebook::findOrFail($id);
+            $ebook = Ebook::findOrFail($id);
 
             if ($ebook->section) {
                 // ── Page content row: save individual JSON fields ──
@@ -2162,7 +2316,7 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Page content updated successfully!'
+                    'message' => 'Page content updated successfully!',
                 ]);
             }
 
@@ -2184,10 +2338,10 @@ class AdminController extends Controller
             // Handle PDF file upload
             if ($request->hasFile('link')) {
                 $pdf = $request->file('link');
-                $pdfName = time() . '_' . str_replace(' ', '_', $pdf->getClientOriginalName());
-                $pdfPath = 'ebook_pdf/' . $pdfName;
+                $pdfName = time().'_'.str_replace(' ', '_', $pdf->getClientOriginalName());
+                $pdfPath = 'ebook_pdf/'.$pdfName;
                 $uploadPath = public_path('ebook_pdf');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $pdf->move($uploadPath, $pdfName);
@@ -2200,10 +2354,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2216,12 +2370,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'E-book updated successfully!'
+                'message' => 'E-book updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2229,17 +2383,17 @@ class AdminController extends Controller
     public function deleteEbook($id)
     {
         try {
-            $ebook = \App\Models\Ebook::findOrFail($id);
+            $ebook = Ebook::findOrFail($id);
             $ebook->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'E-book deleted successfully!'
+                'message' => 'E-book deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2248,20 +2402,23 @@ class AdminController extends Controller
 
     public function changeTrackOrder()
     {
-        $trackOrders = \App\Models\TrackOrderPage::ordered()->get();
+        $trackOrders = TrackOrderPage::ordered()->get();
+
         return view('admin.change-track-order', compact('trackOrders'));
     }
 
     public function createTrackOrder()
     {
-        $trackOrder = new \App\Models\TrackOrderPage();
+        $trackOrder = new TrackOrderPage;
+
         return view('admin.edit-track-order', compact('trackOrder'));
     }
 
     public function editTrackOrder($id)
     {
         try {
-            $trackOrder = \App\Models\TrackOrderPage::findOrFail($id);
+            $trackOrder = TrackOrderPage::findOrFail($id);
+
             return view('admin.edit-track-order', compact('trackOrder'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-track-order')
@@ -2272,15 +2429,16 @@ class AdminController extends Controller
     public function getTrackOrder($id)
     {
         try {
-            $trackOrder = \App\Models\TrackOrderPage::findOrFail($id);
+            $trackOrder = TrackOrderPage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'trackOrder' => $trackOrder
+                'trackOrder' => $trackOrder,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Track Order content not found: ' . $e->getMessage()
+                'message' => 'Track Order content not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -2295,8 +2453,8 @@ class AdminController extends Controller
                 'sort_order' => 'nullable|integer|min:0',
                 'status' => 'nullable|in:Active,Inactive',
             ]);
-
-            $trackOrder = new \App\Models\TrackOrderPage();
+            dd($request->all());
+            $trackOrder = new TrackOrderPage;
             $trackOrder->fill($request->except(['image']));
 
             // Explicitly set as a track order item (not page content)
@@ -2310,10 +2468,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2327,12 +2485,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Track Order content created successfully!',
-                'track_order_id' => $trackOrder->id
+                'track_order_id' => $trackOrder->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2340,26 +2498,25 @@ class AdminController extends Controller
     public function updateTrackOrder(Request $request, $id)
     {
         try {
-            $trackOrder = \App\Models\TrackOrderPage::findOrFail($id);
+            $trackOrder = TrackOrderPage::findOrFail($id);
+            // if ($trackOrder->section) {
+            //     // ── Page content row: save individual JSON fields ──
+            //     $request->validate([
+            //         'json_fields' => 'nullable|array',
+            //         'sort_order' => 'nullable|integer|min:0',
+            //         'status' => 'nullable|in:Active,Inactive',
+            //     ]);
 
-            if ($trackOrder->section) {
-                // ── Page content row: save individual JSON fields ──
-                $request->validate([
-                    'json_fields' => 'nullable|array',
-                    'sort_order' => 'nullable|integer|min:0',
-                    'status' => 'nullable|in:Active,Inactive',
-                ]);
+            //     $trackOrder->content = $request->json_fields ?? [];
+            //     $trackOrder->status = $request->status ?? 'Active';
+            //     $trackOrder->sort_order = $request->sort_order ?? 0;
+            //     $trackOrder->save();
 
-                $trackOrder->content = $request->json_fields ?? [];
-                $trackOrder->status = $request->status ?? 'Active';
-                $trackOrder->sort_order = $request->sort_order ?? 0;
-                $trackOrder->save();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Page content updated successfully!'
-                ]);
-            }
+            //     return response()->json([
+            //         'success' => true,
+            //         'message' => 'Page content updated successfully!',
+            //     ]);
+            // }
 
             // ── Track Order item row ──
             $request->validate([
@@ -2378,10 +2535,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2394,12 +2551,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Track Order content updated successfully!'
+                'message' => 'Track Order content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2407,17 +2564,17 @@ class AdminController extends Controller
     public function deleteTrackOrder($id)
     {
         try {
-            $trackOrder = \App\Models\TrackOrderPage::findOrFail($id);
+            $trackOrder = TrackOrderPage::findOrFail($id);
             $trackOrder->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Track Order content deleted successfully!'
+                'message' => 'Track Order content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2426,20 +2583,23 @@ class AdminController extends Controller
 
     public function changeWebinar()
     {
-        $webinars = \App\Models\WebinarPage::ordered()->get();
+        $webinars = WebinarPage::ordered()->get();
+
         return view('admin.change-webinar', compact('webinars'));
     }
 
     public function createWebinar()
     {
-        $webinar = new \App\Models\WebinarPage();
+        $webinar = new WebinarPage;
+
         return view('admin.edit-webinar', compact('webinar'));
     }
 
     public function editWebinar($id)
     {
         try {
-            $webinar = \App\Models\WebinarPage::findOrFail($id);
+            $webinar = WebinarPage::findOrFail($id);
+
             return view('admin.edit-webinar', compact('webinar'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-webinar')
@@ -2450,15 +2610,16 @@ class AdminController extends Controller
     public function getWebinar($id)
     {
         try {
-            $webinar = \App\Models\WebinarPage::findOrFail($id);
+            $webinar = WebinarPage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'webinar' => $webinar
+                'webinar' => $webinar,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Webinar content not found: ' . $e->getMessage()
+                'message' => 'Webinar content not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -2474,7 +2635,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $webinar = new \App\Models\WebinarPage();
+            $webinar = new WebinarPage;
             $webinar->fill($request->except(['image']));
 
             // Explicitly set as a webinar item (not page content)
@@ -2488,10 +2649,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2505,12 +2666,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Webinar content created successfully!',
-                'webinar_id' => $webinar->id
+                'webinar_id' => $webinar->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2518,7 +2679,7 @@ class AdminController extends Controller
     public function updateWebinar(Request $request, $id)
     {
         try {
-            $webinar = \App\Models\WebinarPage::findOrFail($id);
+            $webinar = WebinarPage::findOrFail($id);
 
             if ($webinar->section) {
                 // ── Page content row: save individual JSON fields ──
@@ -2535,7 +2696,7 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Page content updated successfully!'
+                    'message' => 'Page content updated successfully!',
                 ]);
             }
 
@@ -2563,10 +2724,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2579,12 +2740,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Webinar content updated successfully!'
+                'message' => 'Webinar content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2592,17 +2753,17 @@ class AdminController extends Controller
     public function deleteWebinar($id)
     {
         try {
-            $webinar = \App\Models\WebinarPage::findOrFail($id);
+            $webinar = WebinarPage::findOrFail($id);
             $webinar->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Webinar content deleted successfully!'
+                'message' => 'Webinar content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2611,20 +2772,23 @@ class AdminController extends Controller
 
     public function changeCurrencyCalculator()
     {
-        $currencyCalculators = \App\Models\CurrencyCalculatorPage::ordered()->get();
+        $currencyCalculators = CurrencyCalculatorPage::ordered()->get();
+
         return view('admin.change-currency-calculator', compact('currencyCalculators'));
     }
 
     public function createCurrencyCalculator()
     {
-        $currencyCalculator = new \App\Models\CurrencyCalculatorPage();
+        $currencyCalculator = new CurrencyCalculatorPage;
+
         return view('admin.edit-currency-calculator', compact('currencyCalculator'));
     }
 
     public function editCurrencyCalculator($id)
     {
         try {
-            $currencyCalculator = \App\Models\CurrencyCalculatorPage::findOrFail($id);
+            $currencyCalculator = CurrencyCalculatorPage::findOrFail($id);
+
             return view('admin.edit-currency-calculator', compact('currencyCalculator'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-currency-calculator')
@@ -2635,15 +2799,16 @@ class AdminController extends Controller
     public function getCurrencyCalculator($id)
     {
         try {
-            $currencyCalculator = \App\Models\CurrencyCalculatorPage::findOrFail($id);
+            $currencyCalculator = CurrencyCalculatorPage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'currencyCalculator' => $currencyCalculator
+                'currencyCalculator' => $currencyCalculator,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Currency calculator content not found: ' . $e->getMessage()
+                'message' => 'Currency calculator content not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -2659,7 +2824,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $currencyCalculator = new \App\Models\CurrencyCalculatorPage();
+            $currencyCalculator = new CurrencyCalculatorPage;
             $currencyCalculator->fill($request->except(['image']));
 
             // Explicitly set as a currency calculator item (not page content)
@@ -2673,10 +2838,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2690,12 +2855,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Currency calculator content created successfully!',
-                'currency_calculator_id' => $currencyCalculator->id
+                'currency_calculator_id' => $currencyCalculator->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2703,7 +2868,7 @@ class AdminController extends Controller
     public function updateCurrencyCalculator(Request $request, $id)
     {
         try {
-            $currencyCalculator = \App\Models\CurrencyCalculatorPage::findOrFail($id);
+            $currencyCalculator = CurrencyCalculatorPage::findOrFail($id);
 
             if ($currencyCalculator->section) {
                 // ── Page content row: save individual JSON fields ──
@@ -2730,7 +2895,7 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Page content updated successfully!'
+                    'message' => 'Page content updated successfully!',
                 ]);
             }
 
@@ -2751,10 +2916,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2767,12 +2932,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Currency calculator content updated successfully!'
+                'message' => 'Currency calculator content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2780,17 +2945,17 @@ class AdminController extends Controller
     public function deleteCurrencyCalculator($id)
     {
         try {
-            $currencyCalculator = \App\Models\CurrencyCalculatorPage::findOrFail($id);
+            $currencyCalculator = CurrencyCalculatorPage::findOrFail($id);
             $currencyCalculator->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Currency calculator content deleted successfully!'
+                'message' => 'Currency calculator content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2799,20 +2964,23 @@ class AdminController extends Controller
 
     public function changeWorldWeather()
     {
-        $worldWeathers = \App\Models\WorldWeatherPage::ordered()->get();
+        $worldWeathers = WorldWeatherPage::ordered()->get();
+
         return view('admin.change-world-weather', compact('worldWeathers'));
     }
 
     public function createWorldWeather()
     {
-        $worldWeather = new \App\Models\WorldWeatherPage();
+        $worldWeather = new WorldWeatherPage;
+
         return view('admin.edit-world-weather', compact('worldWeather'));
     }
 
     public function editWorldWeather($id)
     {
         try {
-            $worldWeather = \App\Models\WorldWeatherPage::findOrFail($id);
+            $worldWeather = WorldWeatherPage::findOrFail($id);
+
             return view('admin.edit-world-weather', compact('worldWeather'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-world-weather')
@@ -2823,15 +2991,16 @@ class AdminController extends Controller
     public function getWorldWeather($id)
     {
         try {
-            $worldWeather = \App\Models\WorldWeatherPage::findOrFail($id);
+            $worldWeather = WorldWeatherPage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'worldWeather' => $worldWeather
+                'worldWeather' => $worldWeather,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'World weather content not found: ' . $e->getMessage()
+                'message' => 'World weather content not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -2847,7 +3016,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $worldWeather = new \App\Models\WorldWeatherPage();
+            $worldWeather = new WorldWeatherPage;
             $worldWeather->fill($request->except(['image']));
 
             // Explicitly set as a world weather item (not page content)
@@ -2861,10 +3030,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2878,12 +3047,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'World weather content created successfully!',
-                'world_weather_id' => $worldWeather->id
+                'world_weather_id' => $worldWeather->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2891,7 +3060,7 @@ class AdminController extends Controller
     public function updateWorldWeather(Request $request, $id)
     {
         try {
-            $worldWeather = \App\Models\WorldWeatherPage::findOrFail($id);
+            $worldWeather = WorldWeatherPage::findOrFail($id);
 
             if ($worldWeather->section) {
                 // ── Page content row: save individual JSON fields ──
@@ -2918,7 +3087,7 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Page content updated successfully!'
+                    'message' => 'Page content updated successfully!',
                 ]);
             }
 
@@ -2939,10 +3108,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -2955,12 +3124,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'World weather content updated successfully!'
+                'message' => 'World weather content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2968,17 +3137,17 @@ class AdminController extends Controller
     public function deleteWorldWeather($id)
     {
         try {
-            $worldWeather = \App\Models\WorldWeatherPage::findOrFail($id);
+            $worldWeather = WorldWeatherPage::findOrFail($id);
             $worldWeather->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'World weather content deleted successfully!'
+                'message' => 'World weather content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -2987,20 +3156,23 @@ class AdminController extends Controller
 
     public function changeWorldTime()
     {
-        $worldTimes = \App\Models\WorldTimePage::ordered()->get();
+        $worldTimes = WorldTimePage::ordered()->get();
+
         return view('admin.change-world-time', compact('worldTimes'));
     }
 
     public function createWorldTime()
     {
-        $worldTime = new \App\Models\WorldTimePage();
+        $worldTime = new WorldTimePage;
+
         return view('admin.edit-world-time', compact('worldTime'));
     }
 
     public function editWorldTime($id)
     {
         try {
-            $worldTime = \App\Models\WorldTimePage::findOrFail($id);
+            $worldTime = WorldTimePage::findOrFail($id);
+
             return view('admin.edit-world-time', compact('worldTime'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-world-time')
@@ -3011,15 +3183,16 @@ class AdminController extends Controller
     public function getWorldTime($id)
     {
         try {
-            $worldTime = \App\Models\WorldTimePage::findOrFail($id);
+            $worldTime = WorldTimePage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'worldTime' => $worldTime
+                'worldTime' => $worldTime,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'World time content not found: ' . $e->getMessage()
+                'message' => 'World time content not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -3035,7 +3208,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $worldTime = new \App\Models\WorldTimePage();
+            $worldTime = new WorldTimePage;
             $worldTime->fill($request->except(['image']));
 
             // Explicitly set as a world time item (not page content)
@@ -3049,10 +3222,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -3066,12 +3239,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'World time content created successfully!',
-                'world_time_id' => $worldTime->id
+                'world_time_id' => $worldTime->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3079,7 +3252,7 @@ class AdminController extends Controller
     public function updateWorldTime(Request $request, $id)
     {
         try {
-            $worldTime = \App\Models\WorldTimePage::findOrFail($id);
+            $worldTime = WorldTimePage::findOrFail($id);
 
             if ($worldTime->section) {
                 // ── Page content row: save individual JSON fields ──
@@ -3106,7 +3279,7 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Page content updated successfully!'
+                    'message' => 'Page content updated successfully!',
                 ]);
             }
 
@@ -3127,10 +3300,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -3143,12 +3316,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'World time content updated successfully!'
+                'message' => 'World time content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3156,17 +3329,17 @@ class AdminController extends Controller
     public function deleteWorldTime($id)
     {
         try {
-            $worldTime = \App\Models\WorldTimePage::findOrFail($id);
+            $worldTime = WorldTimePage::findOrFail($id);
             $worldTime->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'World time content deleted successfully!'
+                'message' => 'World time content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3175,14 +3348,15 @@ class AdminController extends Controller
 
     public function changeExpressAirFreightSolutions()
     {
-        $expressAirContent = \App\Models\ExpressAirFreightSolutionsPage::ordered()->get();
+        $expressAirContent = ExpressAirFreightSolutionsPage::ordered()->get();
+
         return view('admin.change-express-air-freight-solutions', ['expressAirContent' => $expressAirContent]);
     }
 
     public function storeExpressAirFreightSolutionsContent(Request $request)
     {
         try {
-            $newContent = new \App\Models\ExpressAirFreightSolutionsPage();
+            $newContent = new ExpressAirFreightSolutionsPage;
 
             $storeData = [
                 'section' => $request->section,
@@ -3192,7 +3366,7 @@ class AdminController extends Controller
             ];
 
             $extraContent = [];
-            switch($request->section) {
+            switch ($request->section) {
                 case 'hero':
                     $badges = $request->input('content.badges');
                     if (is_string($badges)) {
@@ -3243,7 +3417,9 @@ class AdminController extends Controller
                     $checkListInput = $request->input('content.check_list');
                     if (is_string($checkListInput) && trim($checkListInput) !== '') {
                         $checkListItems = array_map('trim', explode("\n", $checkListInput));
-                        $checkListItems = array_filter($checkListItems, function ($v) { return $v !== ''; });
+                        $checkListItems = array_filter($checkListItems, function ($v) {
+                            return $v !== '';
+                        });
                         $storeData['check_list_text'] = implode("\n", $checkListItems);
                     }
                     $storeData['button_text'] = $request->input('content.button_text');
@@ -3305,7 +3481,7 @@ class AdminController extends Controller
             }
 
             // Store keys without DB columns in extra_content as JSON
-            if (!empty($extraContent)) {
+            if (! empty($extraContent)) {
                 $storeData['extra_content'] = json_encode($extraContent);
             }
 
@@ -3317,12 +3493,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Express air freight solutions content stored successfully!'
+                'message' => 'Express air freight solutions content stored successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3330,7 +3506,7 @@ class AdminController extends Controller
     public function updateExpressAirFreightSolutionsContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\ExpressAirFreightSolutionsPage::findOrFail($id);
+            $content = ExpressAirFreightSolutionsPage::findOrFail($id);
 
             $updateData = [
                 'section' => $request->section,
@@ -3340,7 +3516,7 @@ class AdminController extends Controller
             ];
 
             $extraContent = [];
-            switch($request->section) {
+            switch ($request->section) {
                 case 'hero':
                     $badges = $request->input('content.badges');
                     if (is_string($badges)) {
@@ -3391,7 +3567,9 @@ class AdminController extends Controller
                     $checkListInput = $request->input('content.check_list');
                     if (is_string($checkListInput) && trim($checkListInput) !== '') {
                         $checkListItems = array_map('trim', explode("\n", $checkListInput));
-                        $checkListItems = array_filter($checkListItems, function ($v) { return $v !== ''; });
+                        $checkListItems = array_filter($checkListItems, function ($v) {
+                            return $v !== '';
+                        });
                         $updateData['check_list_text'] = implode("\n", $checkListItems);
                     } else {
                         $updateData['check_list_text'] = null;
@@ -3455,7 +3633,7 @@ class AdminController extends Controller
             }
 
             // Store keys without DB columns in extra_content as JSON
-            if (!empty($extraContent)) {
+            if (! empty($extraContent)) {
                 $updateData['extra_content'] = json_encode($extraContent);
             } else {
                 $updateData['extra_content'] = null;
@@ -3468,12 +3646,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Express air freight solutions content updated successfully!'
+                'message' => 'Express air freight solutions content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3490,31 +3668,31 @@ class AdminController extends Controller
                 ]);
 
                 $file = $request->file('upload');
-                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
                 $uploadPath = public_path('blog_image');
 
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
 
                 $file->move($uploadPath, $fileName);
 
-                $url = asset('blog_image/' . $fileName);
+                $url = asset('blog_image/'.$fileName);
 
                 return response()->json([
                     'uploaded' => true,
-                    'url' => $url
+                    'url' => $url,
                 ]);
             }
 
             return response()->json([
                 'uploaded' => false,
-                'error' => ['message' => 'No file uploaded.']
+                'error' => ['message' => 'No file uploaded.'],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'uploaded' => false,
-                'error' => ['message' => 'Error uploading image: ' . $e->getMessage()]
+                'error' => ['message' => 'Error uploading image: '.$e->getMessage()],
             ]);
         }
     }
@@ -3531,43 +3709,43 @@ class AdminController extends Controller
                 $uploadedUrls = [];
                 $uploadPath = public_path('blog_image');
 
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
 
                 foreach ($request->file('images') as $file) {
-                    $fileName = time() . '_' . uniqid() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                    $fileName = time().'_'.uniqid().'_'.str_replace(' ', '_', $file->getClientOriginalName());
                     $file->move($uploadPath, $fileName);
-                    $uploadedUrls[] = asset('blog_image/' . $fileName);
+                    $uploadedUrls[] = asset('blog_image/'.$fileName);
                 }
 
                 return response()->json([
                     'success' => true,
                     'urls' => $uploadedUrls,
-                    'message' => count($uploadedUrls) . ' image(s) uploaded successfully!'
+                    'message' => count($uploadedUrls).' image(s) uploaded successfully!',
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'message' => 'No images uploaded.'
+                'message' => 'No images uploaded.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error uploading images: ' . $e->getMessage()
+                'message' => 'Error uploading images: '.$e->getMessage(),
             ]);
         }
     }
 
     public function deleteExpressAirFreightSolutionsContent($id)
     {
-        $content = \App\Models\ExpressAirFreightSolutionsPage::findOrFail($id);
+        $content = ExpressAirFreightSolutionsPage::findOrFail($id);
         $content->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Express air freight solutions content deleted successfully!'
+            'message' => 'Express air freight solutions content deleted successfully!',
         ]);
     }
 
@@ -3575,14 +3753,15 @@ class AdminController extends Controller
 
     public function changeBarcodeGenerator()
     {
-        $barcodeContent = \App\Models\BarcodeGeneratorPage::orderBy('display_order')->get();
+        $barcodeContent = BarcodeGeneratorPage::orderBy('display_order')->get();
+
         return view('admin.change-barcode-generator', ['barcodeContent' => $barcodeContent]);
     }
 
     public function updateBarcodeGeneratorContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\BarcodeGeneratorPage::findOrFail($id);
+            $content = BarcodeGeneratorPage::findOrFail($id);
 
             $updateData = [
                 'title' => $request->title,
@@ -3603,12 +3782,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Barcode generator content updated successfully!'
+                'message' => 'Barcode generator content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3616,17 +3795,17 @@ class AdminController extends Controller
     public function deleteBarcodeGeneratorContent($id)
     {
         try {
-            $content = \App\Models\BarcodeGeneratorPage::findOrFail($id);
+            $content = BarcodeGeneratorPage::findOrFail($id);
             $content->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Barcode generator content deleted successfully!'
+                'message' => 'Barcode generator content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3635,14 +3814,15 @@ class AdminController extends Controller
 
     public function changeShippingRateCalculator()
     {
-        $shippingRateContent = \App\Models\ShippingRateCalculatorPage::orderBy('display_order')->get();
+        $shippingRateContent = ShippingRateCalculatorPage::orderBy('display_order')->get();
+
         return view('admin.change-shipping-rate-calculator', ['shippingRateContent' => $shippingRateContent]);
     }
 
     public function updateShippingRateCalculatorContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\ShippingRateCalculatorPage::findOrFail($id);
+            $content = ShippingRateCalculatorPage::findOrFail($id);
 
             $updateData = [
                 'title' => $request->title,
@@ -3663,12 +3843,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Shipping rate calculator content updated successfully!'
+                'message' => 'Shipping rate calculator content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3676,17 +3856,17 @@ class AdminController extends Controller
     public function deleteShippingRateCalculatorContent($id)
     {
         try {
-            $content = \App\Models\ShippingRateCalculatorPage::findOrFail($id);
+            $content = ShippingRateCalculatorPage::findOrFail($id);
             $content->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Shipping rate calculator content deleted successfully!'
+                'message' => 'Shipping rate calculator content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3695,14 +3875,15 @@ class AdminController extends Controller
 
     public function changeHsnFinder()
     {
-        $hsnFinderContent = \App\Models\HsnFinderPage::orderBy('display_order')->get();
+        $hsnFinderContent = HsnFinderPage::orderBy('display_order')->get();
+
         return view('admin.change-hsn-finder', ['hsnFinderContent' => $hsnFinderContent]);
     }
 
     public function updateHsnFinderContent(Request $request, $id)
     {
         try {
-            $content = \App\Models\HsnFinderPage::findOrFail($id);
+            $content = HsnFinderPage::findOrFail($id);
 
             $updateData = [
                 'title' => $request->title,
@@ -3723,12 +3904,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'HSN finder content updated successfully!'
+                'message' => 'HSN finder content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3736,17 +3917,17 @@ class AdminController extends Controller
     public function deleteHsnFinderContent($id)
     {
         try {
-            $content = \App\Models\HsnFinderPage::findOrFail($id);
+            $content = HsnFinderPage::findOrFail($id);
             $content->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'HSN finder content deleted successfully!'
+                'message' => 'HSN finder content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3755,20 +3936,23 @@ class AdminController extends Controller
 
     public function changePartnership()
     {
-        $partnerships = \App\Models\PartnershipPage::ordered()->get();
+        $partnerships = PartnershipPage::ordered()->get();
+
         return view('admin.change-partnership', compact('partnerships'));
     }
 
     public function createPartnership()
     {
-        $partner = new \App\Models\PartnershipPage();
+        $partner = new PartnershipPage;
+
         return view('admin.edit-partnership', compact('partner'));
     }
 
     public function editPartnership($id)
     {
         try {
-            $partner = \App\Models\PartnershipPage::findOrFail($id);
+            $partner = PartnershipPage::findOrFail($id);
+
             return view('admin.edit-partnership', compact('partner'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-partnership')
@@ -3779,15 +3963,16 @@ class AdminController extends Controller
     public function getPartnership($id)
     {
         try {
-            $partner = \App\Models\PartnershipPage::findOrFail($id);
+            $partner = PartnershipPage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'partner' => $partner
+                'partner' => $partner,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Partnership content not found: ' . $e->getMessage()
+                'message' => 'Partnership content not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -3803,7 +3988,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $partner = new \App\Models\PartnershipPage();
+            $partner = new PartnershipPage;
             $partner->fill($request->except(['image']));
 
             // Explicitly set as a partnership item (not page content)
@@ -3816,10 +4001,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -3833,12 +4018,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Partnership content created successfully!',
-                'partner_id' => $partner->id
+                'partner_id' => $partner->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3846,7 +4031,7 @@ class AdminController extends Controller
     public function updatePartnership(Request $request, $id)
     {
         try {
-            $partner = \App\Models\PartnershipPage::findOrFail($id);
+            $partner = PartnershipPage::findOrFail($id);
 
             if ($partner->section) {
                 $request->validate([
@@ -3868,10 +4053,10 @@ class AdminController extends Controller
 
                 if ($request->hasFile('image')) {
                     $image = $request->file('image');
-                    $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                    $imagePath = 'public/website_images/' . $imageName;
+                    $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                    $imagePath = 'public/website_images/'.$imageName;
                     $uploadPath = public_path('website_images');
-                    if (!file_exists($uploadPath)) {
+                    if (! file_exists($uploadPath)) {
                         mkdir($uploadPath, 0755, true);
                     }
                     $image->move($uploadPath, $imageName);
@@ -3882,7 +4067,7 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Page content updated successfully!'
+                    'message' => 'Page content updated successfully!',
                 ]);
             }
 
@@ -3901,10 +4086,10 @@ class AdminController extends Controller
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp,bmp,tiff|max:10240',
                 ]);
                 $image = $request->file('image');
-                $imageName = time() . '_' . str_replace(' ', '_', $image->getClientOriginalName());
-                $imagePath = 'public/website_images/' . $imageName;
+                $imageName = time().'_'.str_replace(' ', '_', $image->getClientOriginalName());
+                $imagePath = 'public/website_images/'.$imageName;
                 $uploadPath = public_path('website_images');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $imageName);
@@ -3917,12 +4102,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Partnership content updated successfully!'
+                'message' => 'Partnership content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -3930,33 +4115,33 @@ class AdminController extends Controller
     public function deletePartnership($id)
     {
         try {
-            $partner = \App\Models\PartnershipPage::findOrFail($id);
+            $partner = PartnershipPage::findOrFail($id);
             $partner->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Partnership content deleted successfully!'
+                'message' => 'Partnership content deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function editAllPartnership()
     {
-        $hero = \App\Models\PartnershipPage::bySection('hero')->active()->first();
-        $logos = \App\Models\PartnershipPage::bySection('logos')->active()->ordered()->get();
-        $formSection = \App\Models\PartnershipPage::bySection('partner_form')->active()->first();
-        $aboutSection = \App\Models\PartnershipPage::bySection('about')->active()->first();
-        $features = \App\Models\PartnershipPage::bySection('features')->active()->ordered()->get();
-        $ecosystemSection = \App\Models\PartnershipPage::bySection('ecosystem')->active()->first();
-        $ecosystemGlobalCards = \App\Models\PartnershipPage::bySection('ecosystem_global')->active()->ordered()->get();
-        $ecosystemPartnerCards = \App\Models\PartnershipPage::bySection('ecosystem_partner')->active()->ordered()->get();
-        $faqSection = \App\Models\PartnershipPage::bySection('faq')->active()->first();
-        $faqItems = \App\Models\Faq::byPage('partnership')->active()->ordered()->get();
+        $hero = PartnershipPage::bySection('hero')->active()->first();
+        $logos = PartnershipPage::bySection('logos')->active()->ordered()->get();
+        $formSection = PartnershipPage::bySection('partner_form')->active()->first();
+        $aboutSection = PartnershipPage::bySection('about')->active()->first();
+        $features = PartnershipPage::bySection('features')->active()->ordered()->get();
+        $ecosystemSection = PartnershipPage::bySection('ecosystem')->active()->first();
+        $ecosystemGlobalCards = PartnershipPage::bySection('ecosystem_global')->active()->ordered()->get();
+        $ecosystemPartnerCards = PartnershipPage::bySection('ecosystem_partner')->active()->ordered()->get();
+        $faqSection = PartnershipPage::bySection('faq')->active()->first();
+        $faqItems = Faq::byPage('partnership')->active()->ordered()->get();
 
         return view('admin.edit-partnership-all', compact(
             'hero', 'logos', 'formSection', 'aboutSection', 'features',
@@ -3972,11 +4157,11 @@ class AdminController extends Controller
 
             // Helper to update a single record
             $updateRecord = function ($id, $updates) {
-                $record = \App\Models\PartnershipPage::findOrFail($id);
+                $record = PartnershipPage::findOrFail($id);
                 foreach ($updates as $key => $value) {
                     if ($key === 'content' && is_array($value)) {
                         $record->content = $value;
-                    } elseif ($key === 'image' && !empty($value)) {
+                    } elseif ($key === 'image' && ! empty($value)) {
                         $record->image = $value;
                     } elseif ($key === 'title' || $key === 'description' || $key === 'link' || $key === 'item_key' || $key === 'status' || $key === 'sort_order') {
                         $record->$key = $value;
@@ -4067,7 +4252,7 @@ class AdminController extends Controller
             // Update FAQ Items (unified faq table)
             if (isset($data['faq_items']) && is_array($data['faq_items'])) {
                 foreach ($data['faq_items'] as $faqItemData) {
-                    $faq = \App\Models\Faq::findOrFail($faqItemData['id']);
+                    $faq = Faq::findOrFail($faqItemData['id']);
                     $faq->question = $faqItemData['question'] ?? $faq->question;
                     $faq->answer = $faqItemData['answer'] ?? $faq->answer;
                     $faq->save();
@@ -4076,13 +4261,13 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'All partnership content updated successfully!'
+                'message' => 'All partnership content updated successfully!',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4094,9 +4279,9 @@ class AdminController extends Controller
     public function updateDocumentDownloadPageMeta(Request $request)
     {
         try {
-            $pageMeta = \App\Models\DocumentDownloadPage::bySection('page_meta')->active()->first();
-            if (!$pageMeta) {
-                $pageMeta = new \App\Models\DocumentDownloadPage();
+            $pageMeta = DocumentDownloadPage::bySection('page_meta')->active()->first();
+            if (! $pageMeta) {
+                $pageMeta = new DocumentDownloadPage;
                 $pageMeta->section = 'page_meta';
                 $pageMeta->status = 'Active';
             }
@@ -4110,33 +4295,36 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Page content updated successfully!'
+                'message' => 'Page content updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function changeDocumentDownload()
     {
-        $documents = \App\Models\DocumentDownloadPage::ordered()->get();
-        $pageMeta = \App\Models\DocumentDownloadPage::bySection('page_meta')->first();
+        $documents = DocumentDownloadPage::ordered()->get();
+        $pageMeta = DocumentDownloadPage::bySection('page_meta')->first();
+
         return view('admin.change-document-download', compact('documents', 'pageMeta'));
     }
 
     public function createDocumentDownload()
     {
-        $document = new \App\Models\DocumentDownloadPage();
+        $document = new DocumentDownloadPage;
+
         return view('admin.edit-document-download', compact('document'));
     }
 
     public function editDocumentDownload($id)
     {
         try {
-            $document = \App\Models\DocumentDownloadPage::findOrFail($id);
+            $document = DocumentDownloadPage::findOrFail($id);
+
             return view('admin.edit-document-download', compact('document'));
         } catch (\Exception $e) {
             return redirect()->route('admin.change-document-download')
@@ -4147,15 +4335,16 @@ class AdminController extends Controller
     public function getDocumentDownload($id)
     {
         try {
-            $document = \App\Models\DocumentDownloadPage::findOrFail($id);
+            $document = DocumentDownloadPage::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'document' => $document
+                'document' => $document,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Document not found: ' . $e->getMessage()
+                'message' => 'Document not found: '.$e->getMessage(),
             ]);
         }
     }
@@ -4175,7 +4364,7 @@ class AdminController extends Controller
                 'status' => 'nullable|in:Active,Inactive',
             ]);
 
-            $document = new \App\Models\DocumentDownloadPage();
+            $document = new DocumentDownloadPage;
             $document->title = $request->title;
             $document->file_type = $request->file_type;
             $document->file_size = $request->file_size;
@@ -4192,24 +4381,24 @@ class AdminController extends Controller
                 // Get file size BEFORE moving (after move, temp file is gone)
                 $bytes = $file->getSize();
                 if ($bytes < 1024) {
-                    $document->file_size = $bytes . ' B';
+                    $document->file_size = $bytes.' B';
                 } elseif ($bytes < 1048576) {
-                    $document->file_size = round($bytes / 1024, 1) . ' KB';
+                    $document->file_size = round($bytes / 1024, 1).' KB';
                 } elseif ($bytes < 1073741824) {
-                    $document->file_size = round($bytes / 1048576, 1) . ' MB';
+                    $document->file_size = round($bytes / 1048576, 1).' MB';
                 } else {
-                    $document->file_size = round($bytes / 1073741824, 2) . ' GB';
+                    $document->file_size = round($bytes / 1073741824, 2).' GB';
                 }
 
-                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
                 $uploadPath = public_path('uploads/documents');
 
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
 
                 $file->move($uploadPath, $fileName);
-                $document->file_url = asset('uploads/documents/' . $fileName);
+                $document->file_url = asset('uploads/documents/'.$fileName);
             } else {
                 $document->file_url = $request->file_url ?? '#';
             }
@@ -4219,12 +4408,12 @@ class AdminController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Document created successfully!',
-                'document_id' => $document->id
+                'document_id' => $document->id,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4232,7 +4421,7 @@ class AdminController extends Controller
     public function updateDocumentDownload(Request $request, $id)
     {
         try {
-            $document = \App\Models\DocumentDownloadPage::findOrFail($id);
+            $document = DocumentDownloadPage::findOrFail($id);
 
             $request->validate([
                 'title' => 'required|string|max:255',
@@ -4261,24 +4450,24 @@ class AdminController extends Controller
                 // Get file size BEFORE moving (after move, temp file is gone)
                 $bytes = $file->getSize();
                 if ($bytes < 1024) {
-                    $document->file_size = $bytes . ' B';
+                    $document->file_size = $bytes.' B';
                 } elseif ($bytes < 1048576) {
-                    $document->file_size = round($bytes / 1024, 1) . ' KB';
+                    $document->file_size = round($bytes / 1024, 1).' KB';
                 } elseif ($bytes < 1073741824) {
-                    $document->file_size = round($bytes / 1048576, 1) . ' MB';
+                    $document->file_size = round($bytes / 1048576, 1).' MB';
                 } else {
-                    $document->file_size = round($bytes / 1073741824, 2) . ' GB';
+                    $document->file_size = round($bytes / 1073741824, 2).' GB';
                 }
 
-                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
                 $uploadPath = public_path('uploads/documents');
 
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
 
                 $file->move($uploadPath, $fileName);
-                $document->file_url = asset('uploads/documents/' . $fileName);
+                $document->file_url = asset('uploads/documents/'.$fileName);
             } else {
                 $document->file_size = $request->file_size ?? $document->file_size;
             }
@@ -4287,12 +4476,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Document updated successfully!'
+                'message' => 'Document updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4300,24 +4489,25 @@ class AdminController extends Controller
     public function deleteDocumentDownload($id)
     {
         try {
-            $document = \App\Models\DocumentDownloadPage::findOrFail($id);
+            $document = DocumentDownloadPage::findOrFail($id);
             $document->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Document deleted successfully!'
+                'message' => 'Document deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function editAllDocumentDownload()
     {
-        $documents = \App\Models\DocumentDownloadPage::ordered()->get();
+        $documents = DocumentDownloadPage::ordered()->get();
+
         return view('admin.edit-document-download-all', compact('documents'));
     }
 
@@ -4328,7 +4518,7 @@ class AdminController extends Controller
 
             if (isset($data['documents']) && is_array($data['documents'])) {
                 foreach ($data['documents'] as $docId => $docData) {
-                    $record = \App\Models\DocumentDownloadPage::findOrFail($docId);
+                    $record = DocumentDownloadPage::findOrFail($docId);
                     $record->title = $docData['title'] ?? $record->title;
                     $record->file_type = $docData['file_type'] ?? $record->file_type;
                     $record->category = $docData['category'] ?? $record->category;
@@ -4344,24 +4534,24 @@ class AdminController extends Controller
                         // Get file size BEFORE moving (after move, temp file is gone)
                         $bytes = $file->getSize();
                         if ($bytes < 1024) {
-                            $record->file_size = $bytes . ' B';
+                            $record->file_size = $bytes.' B';
                         } elseif ($bytes < 1048576) {
-                            $record->file_size = round($bytes / 1024, 1) . ' KB';
+                            $record->file_size = round($bytes / 1024, 1).' KB';
                         } elseif ($bytes < 1073741824) {
-                            $record->file_size = round($bytes / 1048576, 1) . ' MB';
+                            $record->file_size = round($bytes / 1048576, 1).' MB';
                         } else {
-                            $record->file_size = round($bytes / 1073741824, 2) . ' GB';
+                            $record->file_size = round($bytes / 1073741824, 2).' GB';
                         }
 
-                        $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                        $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
                         $uploadPath = public_path('uploads/documents');
 
-                        if (!file_exists($uploadPath)) {
+                        if (! file_exists($uploadPath)) {
                             mkdir($uploadPath, 0755, true);
                         }
 
                         $file->move($uploadPath, $fileName);
-                        $record->file_url = asset('uploads/documents/' . $fileName);
+                        $record->file_url = asset('uploads/documents/'.$fileName);
                     } else {
                         $record->file_size = $docData['file_size'] ?? $record->file_size;
                         $record->file_url = $docData['file_url'] ?? $record->file_url;
@@ -4373,12 +4563,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'All documents updated successfully!'
+                'message' => 'All documents updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4387,31 +4577,32 @@ class AdminController extends Controller
 
     public function changeCommonStats()
     {
-        $commonStats = \App\Models\FactNumberSectionCommonPage::orderBy('display_order')->get();
+        $commonStats = FactNumberSectionCommonPage::orderBy('display_order')->get();
+
         return view('admin.change-common-stats', compact('commonStats'));
     }
 
     public function updateCommonStats(Request $request, $id)
     {
         try {
-            $stat = \App\Models\FactNumberSectionCommonPage::findOrFail($id);
+            $stat = FactNumberSectionCommonPage::findOrFail($id);
 
             $stat->update([
-                'title'         => $request->title,
+                'title' => $request->title,
                 'target_number' => $request->target_number,
-                'suffix'        => $request->suffix,
+                'suffix' => $request->suffix,
                 'display_order' => $request->display_order ?? 0,
-                'status'        => $request->has('status') ? true : false,
+                'status' => $request->has('status') ? true : false,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Stat updated successfully!'
+                'message' => 'Stat updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4419,17 +4610,17 @@ class AdminController extends Controller
     public function deleteCommonStats($id)
     {
         try {
-            $stat = \App\Models\FactNumberSectionCommonPage::findOrFail($id);
+            $stat = FactNumberSectionCommonPage::findOrFail($id);
             $stat->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Stat deleted successfully!'
+                'message' => 'Stat deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4438,7 +4629,8 @@ class AdminController extends Controller
 
     public function changePartnerLogos()
     {
-        $partnerLogos = \App\Models\PartnersSectionCommonPage::orderBy('display_order')->get();
+        $partnerLogos = PartnersSectionCommonPage::orderBy('display_order')->get();
+
         return view('admin.change-partner-logos', compact('partnerLogos'));
     }
 
@@ -4453,29 +4645,29 @@ class AdminController extends Controller
 
             // Handle file upload
             $image = $request->file('logo_image');
-            $fileName = time() . '_partner_' . str_replace(' ', '_', $image->getClientOriginalName());
+            $fileName = time().'_partner_'.str_replace(' ', '_', $image->getClientOriginalName());
             $uploadPath = public_path('uploads/partner_logos');
-            if (!file_exists($uploadPath)) {
+            if (! file_exists($uploadPath)) {
                 mkdir($uploadPath, 0755, true);
             }
             $image->move($uploadPath, $fileName);
-            $imageUrl = asset('uploads/partner_logos/' . $fileName);
+            $imageUrl = asset('uploads/partner_logos/'.$fileName);
 
-            \App\Models\PartnersSectionCommonPage::create([
-                'logo_image'    => $imageUrl,
-                'alt_text'      => $request->alt_text,
+            PartnersSectionCommonPage::create([
+                'logo_image' => $imageUrl,
+                'alt_text' => $request->alt_text,
                 'display_order' => $request->display_order ?? 0,
-                'status'        => $request->has('status') ? true : false,
+                'status' => $request->has('status') ? true : false,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Partner logo added successfully!'
+                'message' => 'Partner logo added successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4483,36 +4675,36 @@ class AdminController extends Controller
     public function updatePartnerLogo(Request $request, $id)
     {
         try {
-            $logo = \App\Models\PartnersSectionCommonPage::findOrFail($id);
+            $logo = PartnersSectionCommonPage::findOrFail($id);
 
             $data = [
-                'alt_text'      => $request->alt_text,
+                'alt_text' => $request->alt_text,
                 'display_order' => $request->display_order ?? 0,
-                'status'        => $request->has('status') ? true : false,
+                'status' => $request->has('status') ? true : false,
             ];
 
             // Handle file upload if a new image is provided
             if ($request->hasFile('logo_image')) {
                 $image = $request->file('logo_image');
-                $fileName = time() . '_partner_' . str_replace(' ', '_', $image->getClientOriginalName());
+                $fileName = time().'_partner_'.str_replace(' ', '_', $image->getClientOriginalName());
                 $uploadPath = public_path('uploads/partner_logos');
-                if (!file_exists($uploadPath)) {
+                if (! file_exists($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $image->move($uploadPath, $fileName);
-                $data['logo_image'] = asset('uploads/partner_logos/' . $fileName);
+                $data['logo_image'] = asset('uploads/partner_logos/'.$fileName);
             }
 
             $logo->update($data);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Partner logo updated successfully!'
+                'message' => 'Partner logo updated successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
@@ -4520,31 +4712,32 @@ class AdminController extends Controller
     public function deletePartnerLogo($id)
     {
         try {
-            $logo = \App\Models\PartnersSectionCommonPage::findOrFail($id);
+            $logo = PartnersSectionCommonPage::findOrFail($id);
             $logo->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Partner logo deleted successfully!'
+                'message' => 'Partner logo deleted successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ]);
         }
     }
 
     public function changeSubscribers()
     {
-        $subscribers = \App\Models\Subscriber::orderBy('id', 'desc')->get();
+        $subscribers = Subscriber::orderBy('id', 'desc')->get();
+
         return view('admin.change-subscribers', compact('subscribers'));
     }
 
     public function changeFaqQueries()
     {
-        $queries = \App\Models\FaqQuery::orderBy('id', 'desc')->get();
+        $queries = FaqQuery::orderBy('id', 'desc')->get();
+
         return view('admin.change-faq-queries', compact('queries'));
     }
-
 }

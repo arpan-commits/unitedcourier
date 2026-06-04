@@ -22,34 +22,37 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/simplebar/simplebar.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" id="app-style">
     <style>
-    .image-preview-box {
-        width: 120px;
-        height: 80px;
-        object-fit: cover;
-        border-radius: 6px;
-        border: 1px solid #e2e8f0;
-        padding: 2px;
-        background: #f8f9fa;
-    }
-    .image-preview-box:hover {
-        border-color: #2563eb;
-    }
-    .preview-img {
-        width: 80px;
-        height: 80px;
-        object-fit: cover;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-    }
-    .form-section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #0f172a;
-        margin-bottom: 16px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #2563eb;
-        display: inline-block;
-    }
+        .image-preview-box {
+            width: 120px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            padding: 2px;
+            background: #f8f9fa;
+        }
+
+        .image-preview-box:hover {
+            border-color: #2563eb;
+        }
+
+        .preview-img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #2563eb;
+            display: inline-block;
+        }
     </style>
 </head>
 
@@ -64,15 +67,16 @@
                 <div class="d-flex align-items-center justify-content-between gap-2 mb-4 flex-wrap">
                     <div>
                         <h4 class="mb-1">
-                            @if($trackOrder->id)
+                            @if ($trackOrder->id)
                                 Edit Track Order Content
                             @else
                                 Create New Track Order Content
                             @endif
                         </h4>
                         <p class="text-muted mb-0">
-                            @if($trackOrder->id)
-                                Editing: <strong>{{ $trackOrder->title ?: ($trackOrder->section ?: 'Track Order') }}</strong>
+                            @if ($trackOrder->id)
+                                Editing:
+                                <strong>{{ $trackOrder->title ?: ($trackOrder->section ?: 'Track Order') }}</strong>
                             @else
                                 Fill in the details to create new track order page content
                             @endif
@@ -85,23 +89,24 @@
                     </div>
                 </div>
 
-                @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="ti ti-circle-check me-2"></i>
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="ti ti-circle-check me-2"></i>
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
                 @endif
 
-                @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="ti ti-alert-circle me-2"></i>
-                    {{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="ti ti-alert-circle me-2"></i>
+                        {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
                 @endif
 
-                <form id="trackOrderForm" method="POST" @if(!$trackOrder->id) enctype="multipart/form-data" @endif>
+                <form id="trackOrderForm" method="POST"
+                    @if (!$trackOrder->id) enctype="multipart/form-data" @endif>
                     @csrf
                     <input type="hidden" id="trackOrderId" name="id" value="{{ $trackOrder->id }}">
                     <input type="hidden" name="section" value="{{ $trackOrder->section }}">
@@ -110,7 +115,7 @@
                         <!-- Main Content Column -->
                         <div class="col-lg-8">
 
-                            @if($trackOrder->section)
+                            @if ($trackOrder->section)
                                 {{-- ===== PAGE CONTENT ROW (has section value) ===== --}}
                                 <!-- Section Info -->
                                 <div class="card">
@@ -120,11 +125,13 @@
                                     <div class="card-body">
                                         <div class="mb-3">
                                             <label class="form-label">Section</label>
-                                            <input type="text" class="form-control" value="{{ $trackOrder->section }}" readonly>
+                                            <input type="text" class="form-control"
+                                                value="{{ $trackOrder->section }}" readonly>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Item Key</label>
-                                            <input type="text" class="form-control" value="{{ $trackOrder->item_key }}" readonly>
+                                            <input type="text" class="form-control"
+                                                value="{{ $trackOrder->item_key }}" readonly>
                                         </div>
                                     </div>
                                 </div>
@@ -135,26 +142,47 @@
                                         <h5 class="card-title">Content Fields</h5>
                                     </div>
                                     <div class="card-body">
-                                        @if($trackOrder->content && is_array($trackOrder->content))
-                                            @foreach($trackOrder->content as $key => $value)
-                                            <div class="mb-3">
-                                                <label for="json_{{ $key }}" class="form-label">{{ ucwords(str_replace('_', ' ', $key)) }}</label>
-                                                @if(is_string($value) && (strlen($value) > 100 || str_contains($value, "\n")))
-                                                <textarea class="form-control" id="json_{{ $key }}" name="json_fields[{{ $key }}]" rows="4">{{ old('json_fields.' . $key, $value) }}</textarea>
-                                                @elseif(is_string($value) && (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')))
-                                                <div class="input-group">
-                                                    <input type="text" class="form-control" id="json_{{ $key }}" name="json_fields[{{ $key }}]" value="{{ old('json_fields.' . $key, $value) }}" placeholder="https://...">
-                                                    @if($value)
-                                                    <a href="{{ $value }}" target="_blank" class="btn btn-outline-primary"><i class="ti ti-external-link"></i></a>
+                                        @if ($trackOrder->content && is_array($trackOrder->content))
+
+                                            @foreach ($trackOrder->content as $key => $value)
+                                                <div class="mb-3">
+
+                                                    <label for="json_{{ $key }}" class="form-label">
+                                                        {{ ucwords(str_replace('_', ' ', $key)) }}
+                                                    </label>
+
+                                                    @if (is_string($value) && (strlen($value) > 100 || str_contains($value, "\n")))
+                                                        <textarea class="form-control" id="json_{{ $key }}" name="{{ $key }}" rows="4">{{ old($key, $value) }}</textarea>
+                                                    @elseif(is_string($value) && (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')))
+                                                        <div class="input-group">
+
+                                                            <input type="text" class="form-control"
+                                                                id="json_{{ $key }}"
+                                                                name="{{ $key }}"
+                                                                value="{{ old($key, $value) }}"
+                                                                placeholder="https://...">
+
+                                                            @if ($value)
+                                                                <a href="{{ $value }}" target="_blank"
+                                                                    class="btn btn-outline-primary">
+                                                                    <i class="ti ti-external-link"></i>
+                                                                </a>
+                                                            @endif
+
+                                                        </div>
+                                                    @else
+                                                        <input type="text" class="form-control"
+                                                            id="json_{{ $key }}" name="{{ $key }}"
+                                                            value="{{ old($key, $value) }}">
                                                     @endif
+
                                                 </div>
-                                                @else
-                                                <input type="text" class="form-control" id="json_{{ $key }}" name="json_fields[{{ $key }}]" value="{{ old('json_fields.' . $key, $value) }}">
-                                                @endif
-                                            </div>
                                             @endforeach
                                         @else
-                                            <p class="text-muted mb-0">No content data available.</p>
+                                            <p class="text-muted mb-0">
+                                                No content data available.
+                                            </p>
+
                                         @endif
                                     </div>
                                 </div>
@@ -165,17 +193,18 @@
                                         <h5 class="card-title">Image</h5>
                                     </div>
                                     <div class="card-body">
-                                        @if($trackOrder->image)
-                                        <div class="text-center">
-                                            <img src="{{ asset($trackOrder->image) }}" class="preview-img" alt="Content image">
-                                            <p class="text-muted mt-2 mb-0"><small>Image path: {{ $trackOrder->image }}</small></p>
-                                        </div>
+                                        @if ($trackOrder->image)
+                                            <div class="text-center">
+                                                <img src="{{ asset($trackOrder->image) }}" class="preview-img"
+                                                    alt="Content image">
+                                                <p class="text-muted mt-2 mb-0"><small>Image path:
+                                                        {{ $trackOrder->image }}</small></p>
+                                            </div>
                                         @else
-                                        <p class="text-muted mb-0">No image set</p>
+                                            <p class="text-muted mb-0">No image set</p>
                                         @endif
                                     </div>
                                 </div>
-
                             @else
                                 {{-- ===== TRACK ORDER ITEM (no section) ===== --}}
 
@@ -186,16 +215,16 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="mb-3">
-                                            <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                            <label for="title" class="form-label">Title <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="title" name="title"
-                                                value="{{ old('title', $trackOrder->title) }}"
-                                                placeholder="Title" required>
+                                                value="{{ old('title', $trackOrder->title) }}" placeholder="Title"
+                                                required>
                                         </div>
 
                                         <div class="mb-3">
                                             <label for="description" class="form-label">Description</label>
-                                            <textarea class="form-control" id="description" name="description" rows="6"
-                                                placeholder="Description">{{ old('description', $trackOrder->description) }}</textarea>
+                                            <textarea class="form-control" id="description" name="description" rows="6" placeholder="Description">{{ old('description', $trackOrder->description) }}</textarea>
                                         </div>
 
                                         <div class="mb-3">
@@ -214,15 +243,17 @@
                                         <h5 class="card-title">Image</h5>
                                     </div>
                                     <div class="card-body">
-                                        @if($trackOrder->id)
+                                        @if ($trackOrder->id)
                                             {{-- Edit mode: read-only display --}}
-                                            @if($trackOrder->image)
-                                            <div class="text-center">
-                                                <img src="{{ asset($trackOrder->image) }}" class="preview-img" alt="{{ $trackOrder->title }}">
-                                                <p class="text-muted mt-2 mb-0"><small>Image cannot be edited</small></p>
-                                            </div>
+                                            @if ($trackOrder->image)
+                                                <div class="text-center">
+                                                    <img src="{{ asset($trackOrder->image) }}" class="preview-img"
+                                                        alt="{{ $trackOrder->title }}">
+                                                    <p class="text-muted mt-2 mb-0"><small>Image cannot be
+                                                            edited</small></p>
+                                                </div>
                                             @else
-                                            <p class="text-muted mb-0">No image available</p>
+                                                <p class="text-muted mb-0">No image available</p>
                                             @endif
                                         @else
                                             {{-- Create mode: upload field --}}
@@ -254,7 +285,8 @@
                                         <i class="ti ti-device-floppy me-1"></i>
                                         {{ $trackOrder->id ? 'Update' : 'Create' }}
                                     </button>
-                                    <a href="{{ route('admin.change-track-order') }}" class="btn btn-outline-secondary w-100">
+                                    <a href="{{ route('admin.change-track-order') }}"
+                                        class="btn btn-outline-secondary w-100">
                                         <i class="ti ti-x me-1"></i> Cancel
                                     </a>
                                 </div>
@@ -269,8 +301,12 @@
                                     <div class="mb-3">
                                         <label for="status" class="form-label">Status</label>
                                         <select class="form-control" id="status" name="status">
-                                            <option value="Active" {{ old('status', $trackOrder->status ?: 'Active') == 'Active' ? 'selected' : '' }}>Active</option>
-                                            <option value="Inactive" {{ old('status', $trackOrder->status ?: 'Active') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                                            <option value="Active"
+                                                {{ old('status', $trackOrder->status ?: 'Active') == 'Active' ? 'selected' : '' }}>
+                                                Active</option>
+                                            <option value="Inactive"
+                                                {{ old('status', $trackOrder->status ?: 'Active') == 'Inactive' ? 'selected' : '' }}>
+                                                Inactive</option>
                                         </select>
                                     </div>
 
@@ -307,55 +343,56 @@
     <script src="{{ asset('js/script.js') }}" type="text/javascript"></script>
 
     <script>
-    function previewImage(input, previewId) {
-        const preview = document.getElementById(previewId);
-        preview.innerHTML = '';
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.className = 'image-preview-box';
-                preview.appendChild(img);
-            };
-            reader.readAsDataURL(input.files[0]);
+        function previewImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            preview.innerHTML = '';
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'image-preview-box';
+                    preview.appendChild(img);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
         }
-    }
 
-    // =============================================
-    // Track Order Form Submission
-    // =============================================
-    const trackOrderId = document.getElementById('trackOrderId').value;
+        // =============================================
+        // Track Order Form Submission
+        // =============================================
+        const trackOrderId = document.getElementById('trackOrderId').value;
 
-    document.getElementById('trackOrderForm').addEventListener('submit', function(e) {
-        e.preventDefault();
+        document.getElementById('trackOrderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
 
-        const formData = new FormData(this);
+            const formData = new FormData(this);
 
-        let url = trackOrderId ? `${BASE_URL}/admin/update-track-order/${trackOrderId}` : `${BASE_URL}/admin/store-track-order`;
+            let url = trackOrderId ? `${BASE_URL}/admin/update-track-order/${trackOrderId}` :
+                `${BASE_URL}/admin/store-track-order`;
 
-        fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    window.location.href = '{{ route("admin.change-track-order") }}';
-                } else {
-                    console.error('Server Error:', data);
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Network Error:', error);
-                alert('Network error occurred. Please check your connection and try again.');
-            });
-    });
+            fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.href = '{{ route('admin.change-track-order') }}';
+                    } else {
+                        console.error('Server Error:', data);
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Network Error:', error);
+                    alert('Network error occurred. Please check your connection and try again.');
+                });
+        });
     </script>
 </body>
 
