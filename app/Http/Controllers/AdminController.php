@@ -7,6 +7,7 @@ use App\Models\Admin;
 use App\Models\BarcodeGeneratorPage;
 use App\Models\Blog;
 use App\Models\BlogCategory;
+use App\Models\ContactUs;
 use App\Models\ContactUsPage;
 use App\Models\CurrencyCalculatorPage;
 use App\Models\DocumentDownloadPage;
@@ -18,8 +19,10 @@ use App\Models\Faq;
 use App\Models\FaqQuery;
 use App\Models\HsnFinderPage;
 use App\Models\NetworkOffice;
+use App\Models\PartnershipForm;
 use App\Models\PartnershipPage;
 use App\Models\PartnersSectionCommonPage;
+use App\Models\PricingQuote;
 use App\Models\PrivacyPolicyPage;
 use App\Models\RefundAndCancellationPolicyPage;
 use App\Models\ServicePage;
@@ -4731,6 +4734,27 @@ class AdminController extends Controller
         $subscribers = Subscriber::orderBy('id', 'desc')->get();
 
         return view('admin.change-subscribers', compact('subscribers'));
+    }
+
+    public function ContactUs()
+    {
+        $contacts = ContactUs::latest()->paginate(10);
+
+        return view('admin.contact-us', compact('contacts'));
+    }
+
+    public function pricingQuotes()
+    {
+        $quotes = PricingQuote::latest()->paginate(10);
+
+        return view('admin.pricing-quotes', compact('quotes'));
+    }
+
+    public function partnershipForm()
+    {
+        $forms = PartnershipForm::latest()->paginate(10);
+
+        return view('admin.partnership-form', compact('forms'));
     }
 
     public function changeFaqQueries()

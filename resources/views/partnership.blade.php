@@ -67,19 +67,39 @@
                         <h3 class="h4-title">{!! $formSection->content['title'] ?? 'Partner with <span class="gradient-text">United Couriers</span>' !!}</h3>
                     </div>
 
-                    <form>
+                    <form method="POST" action="{{ route('customer.partnership-form.submit') }}">
+                        @csrf
+
+                        @if (session('success'))
+                            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                                <i class="fas fa-circle-check me-2"></i>
+                                {{ session('success') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        @if (session('error'))
+                            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                                <i class="fas fa-circle-xmark me-2"></i>
+                                {{ session('error') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom"
-                                        placeholder="{{ $formSection->content['first_name_placeholder'] ?? 'First Name' }}">
+                                    <input type="text" name="first_name" class="form-control input-custom"
+                                        placeholder="{{ $formSection->content['first_name_placeholder'] ?? 'First Name' }}"
+                                        value="{{ old('first_name') }}" required>
                                     <i class="fas fa-user"></i>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom"
-                                        placeholder="{{ $formSection->content['last_name_placeholder'] ?? 'Last Name' }}">
+                                    <input type="text" name="last_name" class="form-control input-custom"
+                                        placeholder="{{ $formSection->content['last_name_placeholder'] ?? 'Last Name' }}"
+                                        value="{{ old('last_name') }}" required>
                                     <i class="fas fa-user-tag"></i>
                                 </div>
                             </div>
@@ -88,15 +108,17 @@
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="email" class="form-control input-custom"
-                                        placeholder="{{ $formSection->content['email_placeholder'] ?? 'Email' }}">
+                                    <input type="email" name="email" class="form-control input-custom"
+                                        placeholder="{{ $formSection->content['email_placeholder'] ?? 'Email' }}"
+                                        value="{{ old('email') }}" required>
                                     <i class="fas fa-envelope"></i>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="tel" class="form-control input-custom"
-                                        placeholder="{{ $formSection->content['phone_placeholder'] ?? 'Phone' }}">
+                                    <input type="tel" name="phone" class="form-control input-custom"
+                                        placeholder="{{ $formSection->content['phone_placeholder'] ?? 'Phone' }}"
+                                        value="{{ old('phone') }}" required>
                                     <i class="fas fa-phone"></i>
                                 </div>
                             </div>
@@ -105,21 +127,23 @@
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom"
-                                        placeholder="{{ $formSection->content['company_placeholder'] ?? 'Company Name' }}">
-                                    <i class="fa-envelope"></i>
+                                    <input type="text" name="company_name" class="form-control input-custom"
+                                        placeholder="{{ $formSection->content['company_placeholder'] ?? 'Company Name' }}"
+                                        value="{{ old('company_name') }}" required>
+                                    <i class="fas fa-building"></i>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom"
-                                        placeholder="{{ $formSection->content['message_placeholder'] ?? 'Message' }}">
-                                    <i class="fas fa-phone"></i>
+                                    <input type="text" name="message" class="form-control input-custom"
+                                        placeholder="{{ $formSection->content['message_placeholder'] ?? 'Message' }}"
+                                        value="{{ old('message') }}">
+                                    <i class="fas fa-message"></i>
                                 </div>
                             </div>
                         </div>
 
-                        <button type="button" class="btn moving-gradient-bg btn-primary-custom">
+                        <button type="submit" class="btn moving-gradient-bg btn-primary-custom">
                             {{ $formSection->content['button_text'] ?? 'Become a Partner' }}
                         </button>
                     </form>
@@ -132,7 +156,7 @@
                         'Where trust and collaboration <br class="d-none d-md-block"> <span class="moving-gradient-text">create lasting partnerships</span>' !!}
                 </h3>
                 <p class="lead mb-4">
-                    {{ $aboutSection->content['description'] ?? 'With us, you\'re joining hands with a brand that values collaboration and long-term success. Together, let\'s create opportunities, expand reach, and build solutions to move businesses forward – across industries.' }}
+                    {{ html_entity_decode($aboutSection->content['description']) ?? 'With us, you\'re joining hands with a brand that values collaboration and long-term success. Together, let\'s create opportunities, expand reach, and build solutions to move businesses forward – across industries.' }}
                 </p>
 
                 @foreach ($features as $feature)
@@ -301,4 +325,4 @@
     </div>
 </section>
 
-@include('website_include/footer'); ?> ?>
+@include('website_include/footer'); ?> ?> ?> ?> ?> ?> ?> ?> ?> ?>

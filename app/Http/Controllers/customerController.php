@@ -2,25 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use App\Models\Customer;
 use App\Models\BusinessCategory;
-use App\Models\KycDetail;
-use App\Models\AboutPageContent;
-use App\Models\HomePageContent;
-use App\Models\ShipperInfo;
 use App\Models\ConsigneeInfo;
-use App\Models\PackageDimension;
+use App\Models\ContactUs;
+use App\Models\CreateShipment;
+use App\Models\CsbForm;
 use App\Models\CsbInformation;
+use App\Models\Customer;
+use App\Models\HomePageContent;
+use App\Models\KycDetail;
+use App\Models\PackageDimension;
+use App\Models\PartnershipForm;
+use App\Models\PricingQuote;
 use App\Models\ShipmentInvoice;
 use App\Models\ShipmentInvoiceItem;
-use App\Models\CsbForm;
-use App\Models\CreateShipment;
 use App\Models\ShipmentTracking;
-use Illuminate\Support\Facades\Http;
+use App\Models\ShipperInfo;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class customerController extends Controller
 {
@@ -28,17 +31,18 @@ class customerController extends Controller
     {
         return view('customer.login');
     }
-    
+
     public function register()
     {
         $businessCategories = BusinessCategory::active()->ordered()->get();
+
         return view('customer.register', compact('businessCategories'));
     }
-    
+
     // public function index()
     // {
     //     $homeContent = HomePageContent::all();
-        
+
     //     // Group by section type
     //     $heroData = $homeContent->where('section', 'hero')->pluck('content', 'field_name');
     //     $aboutData = $homeContent->where('section', 'about')->pluck('content', 'field_name');
@@ -47,20 +51,18 @@ class customerController extends Controller
     //     $shippingSolutions = $homeContent->where('section', 'shipping_solutions')->orderBy('sort_order')->get();
     //     $testimonials = $homeContent->where('section', 'testimonial')->orderBy('sort_order')->get();
     //     $faqs = $homeContent->where('section', 'faq')->orderBy('sort_order')->get();
-        
+
     //     // Group service cards by sort_order (1, 2, 3)
     //     $serviceCard1 = $serviceCards->where('sort_order', 1)->pluck('content', 'field_name');
     //     $serviceCard2 = $serviceCards->where('sort_order', 2)->pluck('content', 'field_name');
     //     $serviceCard3 = $serviceCards->where('sort_order', 3)->pluck('content', 'field_name');
-        
+
     //     // Group shipping solutions by sort_order (1, 2, 3, 4)
     //     $shippingSolution1 = $shippingSolutions->where('sort_order', 1)->pluck('content', 'field_name');
     //     $shippingSolution2 = $shippingSolutions->where('sort_order', 2)->pluck('content', 'field_name');
     //     $shippingSolution3 = $shippingSolutions->where('sort_order', 3)->pluck('content', 'field_name');
     //     $shippingSolution4 = $shippingSolutions->where('sort_order', 4)->pluck('content', 'field_name');
-        
-        
-        
+
     /**
      * Send OTP via SMS using authkey.io API
      */
@@ -70,12 +72,11 @@ class customerController extends Controller
         $sid = config('services.sms.sender_id');
         $countryCode = config('services.sms.country_code');
 
-        $url = "https://api.authkey.io/request?authkey=" . $authkey
-            . "&mobile=" . $mobile
-            . "&country_code=" . $countryCode
-            . "&sid=" . $sid
-            . "&otp=" . $otp;
-
+        $url = 'https://api.authkey.io/request?authkey='.$authkey
+            .'&mobile='.$mobile
+            .'&country_code='.$countryCode
+            .'&sid='.$sid
+            .'&otp='.$otp;
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -88,11 +89,12 @@ class customerController extends Controller
         curl_close($ch);
 
         if ($curlError) {
-            \Log::error('SMS cURL error: ' . $curlError);
+            \Log::error('SMS cURL error: '.$curlError);
+
             return false;
         }
 
-        \Log::info('SMS API Response - HTTP: ' . $httpCode . ' | Body: ' . ($response ?: 'empty'));
+        \Log::info('SMS API Response - HTTP: '.$httpCode.' | Body: '.($response ?: 'empty'));
 
         return true;
     }
@@ -100,23 +102,23 @@ class customerController extends Controller
     public function checkPhone(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'phone_number' => 'required|string|max:20'
+            'phone_number' => 'required|string|max:20',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Phone number is required'
+                'message' => 'Phone number is required',
             ], 422);
         }
 
         try {
             $customer = Customer::where('phone_number', $request->phone_number)->first();
 
-            if (!$customer) {
+            if (! $customer) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Phone number not found. Please check your number or register first.'
+                    'message' => 'Phone number not found. Please check your number or register first.',
                 ], 404);
             }
 
@@ -127,28 +129,29 @@ class customerController extends Controller
             session([
                 'login_otp' => $otp,
                 'login_phone' => $request->phone_number,
-                'login_otp_expires_at' => now()->addMinutes(5)->timestamp
+                'login_otp_expires_at' => now()->addMinutes(5)->timestamp,
             ]);
 
             // Send OTP via SMS
             $smsSent = $this->sendOtpViaSms($request->phone_number, $otp);
 
-            if (!$smsSent) {
+            if (! $smsSent) {
                 // Log the OTP for development/testing if SMS fails
-                \Log::warning('SMS sending failed. OTP for ' . $request->phone_number . ': ' . $otp);
+                \Log::warning('SMS sending failed. OTP for '.$request->phone_number.': '.$otp);
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'OTP sent successfully to your registered mobile number.',
-                'customer_id' => $customer->id
+                'customer_id' => $customer->id,
             ], 200);
 
         } catch (\Exception $e) {
-            \Log::error('checkPhone error: ' . $e->getMessage());
+            \Log::error('checkPhone error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Server error. Please try again.'
+                'message' => 'Server error. Please try again.',
             ], 500);
         }
     }
@@ -157,13 +160,13 @@ class customerController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'phone_number' => 'required|string|max:20',
-            'otp' => 'required|string|size:6'
+            'otp' => 'required|string|size:6',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid OTP format'
+                'message' => 'Invalid OTP format',
             ], 422);
         }
 
@@ -174,10 +177,10 @@ class customerController extends Controller
             $expiresAt = session('login_otp_expires_at');
 
             // Check if OTP exists in session
-            if (!$sessionOtp || !$sessionPhone) {
+            if (! $sessionOtp || ! $sessionPhone) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No OTP was requested. Please click "Get OTP" first.'
+                    'message' => 'No OTP was requested. Please click "Get OTP" first.',
                 ], 400);
             }
 
@@ -185,9 +188,10 @@ class customerController extends Controller
             if (now()->timestamp > $expiresAt) {
                 // Clear expired OTP
                 session()->forget(['login_otp', 'login_phone', 'login_otp_expires_at']);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'OTP has expired. Please request a new OTP.'
+                    'message' => 'OTP has expired. Please request a new OTP.',
                 ], 400);
             }
 
@@ -195,7 +199,7 @@ class customerController extends Controller
             if ($sessionPhone !== $request->phone_number) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Phone number mismatch. Please request a new OTP.'
+                    'message' => 'Phone number mismatch. Please request a new OTP.',
                 ], 400);
             }
 
@@ -203,17 +207,17 @@ class customerController extends Controller
             if ((string) $sessionOtp !== $request->otp) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid OTP. Please try again.'
+                    'message' => 'Invalid OTP. Please try again.',
                 ], 400);
             }
 
             // OTP verified - find customer and log them in
             $customer = Customer::where('phone_number', $request->phone_number)->first();
 
-            if (!$customer) {
+            if (! $customer) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Phone number not found.'
+                    'message' => 'Phone number not found.',
                 ], 404);
             }
 
@@ -222,26 +226,27 @@ class customerController extends Controller
 
             // Authenticate customer using Laravel's auth system
             auth()->guard('customer')->login($customer);
-            
+
             // Also keep session data for compatibility
-            session(['customer_id' => $customer->id, 'customer_name' => $customer->first_name . ' ' . $customer->last_name]);
+            session(['customer_id' => $customer->id, 'customer_name' => $customer->first_name.' '.$customer->last_name]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'OTP verified successfully! Redirecting to dashboard...',
                 'redirect' => route('customer.dashboard'),
                 'customer' => [
-                    'name' => $customer->first_name . ' ' . $customer->last_name,
+                    'name' => $customer->first_name.' '.$customer->last_name,
                     'email' => $customer->email,
-                    'phone' => $customer->phone_number
-                ]
+                    'phone' => $customer->phone_number,
+                ],
             ], 200);
 
         } catch (\Exception $e) {
-            \Log::error('verifyOtp error: ' . $e->getMessage());
+            \Log::error('verifyOtp error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Verification failed. Please try again.'
+                'message' => 'Verification failed. Please try again.',
             ], 500);
         }
     }
@@ -249,11 +254,12 @@ class customerController extends Controller
     public function dashboard()
     {
         // Check if customer is logged in using auth guard
-        if (!auth()->guard('customer')->check()) {
+        if (! auth()->guard('customer')->check()) {
             return redirect()->route('customer.login');
         }
 
         $customer = auth()->guard('customer')->user();
+
         return view('customer.dashboard', compact('customer'));
     }
 
@@ -261,41 +267,41 @@ class customerController extends Controller
     {
         // Logout customer using auth guard
         auth()->guard('customer')->logout();
-        
+
         // Clear customer session
         session()->forget(['customer_id', 'customer_name']);
-        
+
         // Invalidate the session
         $request->session()->invalidate();
-        
+
         // Regenerate CSRF token
         $request->session()->regenerateToken();
 
         return redirect()->route('customer.login')->with('success', 'You have been logged out successfully.');
     }
-    
-        
+
     public function companies()
     {
         // Check if customer is logged in using auth guard
-        if (!auth()->guard('customer')->check()) {
+        if (! auth()->guard('customer')->check()) {
             return redirect()->route('customer.login');
         }
 
         return view('customer.companies');
     }
-    
+
     public function createShipment()
     {
         // Check if customer is logged in using auth guard
-        if (!auth()->guard('customer')->check()) {
+        if (! auth()->guard('customer')->check()) {
             return redirect()->route('customer.login');
         }
 
         $customer = auth()->guard('customer')->user();
+
         return view('customer.create-shipment', compact('customer'));
     }
-    
+
     public function kycSubmit(Request $request)
     {
         try {
@@ -308,11 +314,11 @@ class customerController extends Controller
                 'authorized_signatory' => 'nullable|string|max:255',
                 'terms_accepted' => 'boolean',
                 'terms_accepted_at' => 'nullable|date',
-            ],);
+            ], );
 
             // Get current customer
             $customer = auth()->guard('customer')->user();
-            
+
             // Prepare KYC data
             $kycData = [
                 'customer_id' => $customer->id,
@@ -332,21 +338,21 @@ class customerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'KYC application submitted successfully! Your application is now under review.',
-                'kyc_id' => $kyc->id
+                'kyc_id' => $kyc->id,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error submitting KYC application: ' . $e->getMessage()
+                'message' => 'Error submitting KYC application: '.$e->getMessage(),
             ], 500);
         }
     }
-    
+
     public function csb5Form()
     {
         // Check if customer is logged in using auth guard
-        if (!auth()->guard('customer')->check()) {
+        if (! auth()->guard('customer')->check()) {
             return redirect()->route('customer.login');
         }
 
@@ -374,9 +380,9 @@ class customerController extends Controller
             $lutDocumentPath = null;
             if ($request->hasFile('lut_document')) {
                 $file = $request->file('lut_document');
-                $filename = time() . '_' . $file->getClientOriginalName();
+                $filename = time().'_'.$file->getClientOriginalName();
                 $file->move(public_path('uploads/lut_documents'), $filename);
-                $lutDocumentPath = 'uploads/lut_documents/' . $filename;
+                $lutDocumentPath = 'uploads/lut_documents/'.$filename;
             }
 
             // Create CSB Form record
@@ -398,20 +404,20 @@ class customerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'CSB form submitted successfully!',
-                'redirect' => route('customer.dashboard')
+                'redirect' => route('customer.dashboard'),
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error submitting CSB form: ' . $e->getMessage()
+                'message' => 'Error submitting CSB form: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -427,14 +433,14 @@ class customerController extends Controller
             'password' => 'required|string|min:6',
             'aadhar_number' => 'nullable|string|max:20',
             'business_category' => 'nullable|string',
-            'termsCheck' => 'required|accepted'
+            'termsCheck' => 'required|accepted',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -450,20 +456,20 @@ class customerController extends Controller
                 'business_category_id' => $request->business_category,
                 'is_terms_accepted' => $request->has('termsCheck'),
                 'email_verified' => false,
-                'aadhar_verified' => false
+                'aadhar_verified' => false,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registration successful! Please check your email for verification.',
-                'redirect' => route('customer.login')
+                'redirect' => route('customer.login'),
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Registration failed. Please try again.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -536,7 +542,6 @@ class customerController extends Controller
                 'invoice_currency' => 'required|string|max:20',
                 'reference_number' => 'nullable|string|max:100',
 
-
                 // invoice items
                 'items.*.box_no' => 'nullable|integer',
                 'items.*.description' => 'nullable|string|max:500',
@@ -550,10 +555,10 @@ class customerController extends Controller
             if ($validatedData['origin_type'] === 'CSB V') {
                 $customer = auth()->guard('customer')->user();
                 if ($customer->csb_status === 1) {
-                    if (!$request->expectsJson()) {
+                    if (! $request->expectsJson()) {
                         return back()
                             ->withErrors([
-                                'origin_type' => 'CSB V requires CSB V onboarding. Your current status is CSB-IV only.'
+                                'origin_type' => 'CSB V requires CSB V onboarding. Your current status is CSB-IV only.',
                             ])
                             ->withInput()
                             ->with('error', 'You are not authorized to create shipments with CSB V origin type. Please complete CSB V onboarding first.');
@@ -563,8 +568,8 @@ class customerController extends Controller
                         'success' => false,
                         'message' => 'You are not authorized to create shipments with CSB V origin type. Please complete CSB V onboarding first.',
                         'errors' => [
-                            'origin_type' => ['CSB V requires CSB V onboarding. Your current status is CSB-IV only.']
-                        ]
+                            'origin_type' => ['CSB V requires CSB V onboarding. Your current status is CSB-IV only.'],
+                        ],
                     ], 422);
                 }
             }
@@ -619,9 +624,9 @@ class customerController extends Controller
             foreach ($packageRows as $packageData) {
                 $hasPackageValue = collect($packageData)->filter(function ($value) {
                     return $value !== null && $value !== '';
-                })->isNotEmpty() || !empty($packageShippingMethod);
+                })->isNotEmpty() || ! empty($packageShippingMethod);
 
-                if (!$hasPackageValue) {
+                if (! $hasPackageValue) {
                     continue;
                 }
 
@@ -760,14 +765,14 @@ class customerController extends Controller
                             'raw_response' => $shipmentResponse,
                             'status' => 'created',
                         ]);
-                        \Log::info('Shipment tracking stored for shipment: ' . ($shipmentResponse['ShipmentResults']['ShipmentIdentificationNumber'] ?? 'N/A'));
+                        \Log::info('Shipment tracking stored for shipment: '.($shipmentResponse['ShipmentResults']['ShipmentIdentificationNumber'] ?? 'N/A'));
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Failed to store shipment tracking: ' . $e->getMessage());
+                    \Log::error('Failed to store shipment tracking: '.$e->getMessage());
                 }
             }
 
-            if (!$request->expectsJson()) {
+            if (! $request->expectsJson()) {
                 return back()->with('success', 'Shipment created successfully!');
             }
 
@@ -782,11 +787,11 @@ class customerController extends Controller
                     'package_ids' => $packageIds,
                     'csb_id' => $csb->id,
                     'invoice_id' => $invoice->id,
-                ]
+                ],
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            if (!$request->expectsJson()) {
+        } catch (ValidationException $e) {
+            if (! $request->expectsJson()) {
                 return back()
                     ->withErrors($e->validator)
                     ->withInput()
@@ -796,19 +801,19 @@ class customerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
 
         } catch (\Exception $e) {
-            if (!$request->expectsJson()) {
+            if (! $request->expectsJson()) {
                 return back()
                     ->withInput()
-                    ->with('error', 'Failed to create shipment: ' . $e->getMessage());
+                    ->with('error', 'Failed to create shipment: '.$e->getMessage());
             }
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create shipment: ' . $e->getMessage()
+                'message' => 'Failed to create shipment: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -831,7 +836,7 @@ class customerController extends Controller
         $clientSecret = env('UPS_CLIENT_SECRET');
         $tokenUrl = 'https://onlinetools.ups.com/security/v1/oauth/token';
 
-        if (!$clientId || !$clientSecret) {
+        if (! $clientId || ! $clientSecret) {
             throw new \Exception('UPS client credentials not configured. Set UPS_CLIENT_ID and UPS_CLIENT_SECRET in .env');
         }
 
@@ -839,27 +844,25 @@ class customerController extends Controller
             ->asForm()
             ->post($tokenUrl, ['grant_type' => 'client_credentials']);
 
-        if (!$response->successful()) {
-            \Log::error('UPS token error: ' . $response->body());
+        if (! $response->successful()) {
+            \Log::error('UPS token error: '.$response->body());
             throw new \Exception('Unable to retrieve UPS access token');
         }
 
         $data = $response->json();
 
         if (empty($data['access_token'])) {
-            \Log::error('UPS token missing access_token: ' . $response->body());
+            \Log::error('UPS token missing access_token: '.$response->body());
             throw new \Exception('UPS access token not found in response');
         }
 
-        $expiresIn = isset($data['expires_in']) ? (int)$data['expires_in'] : 3600;
+        $expiresIn = isset($data['expires_in']) ? (int) $data['expires_in'] : 3600;
         $ttl = max(60, $expiresIn - 60);
         Cache::put($cacheKey, $data['access_token'], $ttl);
 
         return $data['access_token'];
     }
 
-
-    
     public function getUpsRate(Request $request)
     {
         try {
@@ -869,14 +872,14 @@ class customerController extends Controller
             $shipFromPostal = data_get($payload, 'RateRequest.Shipment.ShipFrom.Address.PostalCode');
             if (empty($shipFromPostal)) {
                 $shipperPostal = data_get($payload, 'RateRequest.Shipment.Shipper.Address.PostalCode');
-                if (!empty($shipperPostal)) {
+                if (! empty($shipperPostal)) {
                     data_set($payload, 'RateRequest.Shipment.ShipFrom.Address.PostalCode', $shipperPostal);
                 }
             }
 
             // Log payload for debugging (truncate large payloads)
             try {
-                \Log::info('UPS Rate payload: ' . substr(json_encode($payload), 0, 2000));
+                \Log::info('UPS Rate payload: '.substr(json_encode($payload), 0, 2000));
             } catch (\Exception $e) {
                 // ignore logging errors
             }
@@ -887,7 +890,7 @@ class customerController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to obtain UPS access token: ' . $e->getMessage()
+                    'message' => 'Failed to obtain UPS access token: '.$e->getMessage(),
                 ], 500);
             }
 
@@ -899,7 +902,7 @@ class customerController extends Controller
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json',
                     'Accept: application/json',
-                    'Authorization: Bearer ' . $token,
+                    'Authorization: Bearer '.$token,
                 ],
                 CURLOPT_TIMEOUT => 30,
                 CURLOPT_SSL_VERIFYPEER => false, // Set true in production
@@ -910,26 +913,27 @@ class customerController extends Controller
             $curlError = curl_error($ch);
             curl_close($ch);
             if ($curlError) {
-                \Log::error('UPS Rate cURL error: ' . $curlError);
+                \Log::error('UPS Rate cURL error: '.$curlError);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'UPS API connection error',
-                    'curl_error' => $curlError
+                    'curl_error' => $curlError,
                 ], 500);
             }
 
             // Try to decode JSON, but keep raw response for debugging
             $decoded = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                \Log::warning('UPS Rate returned non-JSON response. HTTP: ' . $httpCode . ' Body: ' . $response);
+                \Log::warning('UPS Rate returned non-JSON response. HTTP: '.$httpCode.' Body: '.$response);
             } else {
-                \Log::info('UPS Rate response HTTP: ' . $httpCode . ' Body: ' . substr($response, 0, 2000));
+                \Log::info('UPS Rate response HTTP: '.$httpCode.' Body: '.substr($response, 0, 2000));
             }
 
             if ($httpCode >= 200 && $httpCode < 300 && isset($decoded['RateResponse'])) {
                 return response()->json([
                     'success' => true,
-                    'rateResponse' => $decoded['RateResponse']
+                    'rateResponse' => $decoded['RateResponse'],
                 ]);
             }
 
@@ -951,7 +955,7 @@ class customerController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Server error: ' . $e->getMessage()
+                'message' => 'Server error: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -974,19 +978,19 @@ class customerController extends Controller
             ->asForm()
             ->post($tokenUrl, ['grant_type' => 'client_credentials']);
 
-        if (!$response->successful()) {
-            \Log::error('UPS Ship token error: ' . $response->body());
+        if (! $response->successful()) {
+            \Log::error('UPS Ship token error: '.$response->body());
             throw new \Exception('Unable to retrieve UPS Ship access token');
         }
 
         $data = $response->json();
 
         if (empty($data['access_token'])) {
-            \Log::error('UPS Ship token missing access_token: ' . $response->body());
+            \Log::error('UPS Ship token missing access_token: '.$response->body());
             throw new \Exception('UPS Ship access token not found in response');
         }
 
-        $expiresIn = isset($data['expires_in']) ? (int)$data['expires_in'] : 3600;
+        $expiresIn = isset($data['expires_in']) ? (int) $data['expires_in'] : 3600;
         $ttl = max(60, $expiresIn - 60);
         Cache::put($cacheKey, $data['access_token'], $ttl);
 
@@ -1004,7 +1008,7 @@ class customerController extends Controller
 
             // Log payload for debugging
             try {
-                \Log::info('UPS Ship payload: ' . substr(json_encode($payload), 0, 2000));
+                \Log::info('UPS Ship payload: '.substr(json_encode($payload), 0, 2000));
             } catch (\Exception $e) {
                 // ignore logging errors
             }
@@ -1015,7 +1019,7 @@ class customerController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to obtain UPS Ship access token: ' . $e->getMessage()
+                    'message' => 'Failed to obtain UPS Ship access token: '.$e->getMessage(),
                 ], 500);
             }
 
@@ -1027,8 +1031,8 @@ class customerController extends Controller
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json',
                     'Accept: application/json',
-                    'Authorization: Bearer ' . $token,
-                    'transId: ' . uniqid('ship_', true),
+                    'Authorization: Bearer '.$token,
+                    'transId: '.uniqid('ship_', true),
                     'transactionSrc: unitedcourier',
                 ],
                 CURLOPT_TIMEOUT => 60,
@@ -1041,19 +1045,20 @@ class customerController extends Controller
             curl_close($ch);
 
             if ($curlError) {
-                \Log::error('UPS Ship cURL error: ' . $curlError);
+                \Log::error('UPS Ship cURL error: '.$curlError);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'UPS Ship API connection error',
-                    'curl_error' => $curlError
+                    'curl_error' => $curlError,
                 ], 500);
             }
 
             $decoded = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                \Log::warning('UPS Ship returned non-JSON response. HTTP: ' . $httpCode . ' Body: ' . $response);
+                \Log::warning('UPS Ship returned non-JSON response. HTTP: '.$httpCode.' Body: '.$response);
             } else {
-                \Log::info('UPS Ship response HTTP: ' . $httpCode . ' Body: ' . substr($response, 0, 2000));
+                \Log::info('UPS Ship response HTTP: '.$httpCode.' Body: '.substr($response, 0, 2000));
             }
 
             if ($httpCode >= 200 && $httpCode < 300 && isset($decoded['ShipmentResponse'])) {
@@ -1061,7 +1066,7 @@ class customerController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'shipmentResponse' => $shipmentResponse
+                    'shipmentResponse' => $shipmentResponse,
                 ]);
             }
 
@@ -1078,13 +1083,13 @@ class customerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $errorMessage,
-                'rawResponse' => $decoded
+                'rawResponse' => $decoded,
             ], $httpCode ?: 500);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Server error: ' . $e->getMessage()
+                'message' => 'Server error: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1095,7 +1100,7 @@ class customerController extends Controller
     public function viewAllShipments()
     {
         // Check if customer is logged in
-        if (!auth()->guard('customer')->check()) {
+        if (! auth()->guard('customer')->check()) {
             return redirect()->route('customer.login');
         }
 
@@ -1120,10 +1125,10 @@ class customerController extends Controller
     {
         try {
             // Check if customer is logged in
-            if (!auth()->guard('customer')->check()) {
+            if (! auth()->guard('customer')->check()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthenticated.'
+                    'message' => 'Unauthenticated.',
                 ], 401);
             }
 
@@ -1137,10 +1142,10 @@ class customerController extends Controller
                 ->where('customer_id', $customerId)
                 ->first();
 
-            if (!$shipper) {
+            if (! $shipper) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Shipment not found or does not belong to you.'
+                    'message' => 'Shipment not found or does not belong to you.',
                 ], 403);
             }
 
@@ -1148,7 +1153,7 @@ class customerController extends Controller
             if ($invoice->status === 'cancelled') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This shipment is already cancelled.'
+                    'message' => 'This shipment is already cancelled.',
                 ], 400);
             }
 
@@ -1157,13 +1162,13 @@ class customerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Shipment cancelled successfully.'
+                'message' => 'Shipment cancelled successfully.',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error cancelling shipment: ' . $e->getMessage()
+                'message' => 'Error cancelling shipment: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1179,8 +1184,8 @@ class customerController extends Controller
         $datePart = now()->format('ymd'); // e.g., 260602 for 2026-06-02
 
         // Find the highest serial number for today's date prefix
-        $todayPrefix = $prefix . $datePart;
-        $lastAwb = ShipperInfo::where('awb_number', 'LIKE', $todayPrefix . '%')
+        $todayPrefix = $prefix.$datePart;
+        $lastAwb = ShipperInfo::where('awb_number', 'LIKE', $todayPrefix.'%')
             ->orderBy('awb_number', 'desc')
             ->value('awb_number');
 
@@ -1196,6 +1201,102 @@ class customerController extends Controller
         // Pad serial to 5 digits
         $serialPart = str_pad($newSerial, 5, '0', STR_PAD_LEFT);
 
-        return $todayPrefix . $serialPart;
+        return $todayPrefix.$serialPart;
+    }
+
+    public function saveContactUs(Request $request)
+    {
+        $request->validate([
+            'first_name' => 'required|max:100',
+            'last_name' => 'required|max:100',
+            'email' => 'required|email',
+            'phone' => 'required|max:20',
+            'service' => 'nullable|max:255',
+            'message' => 'nullable',
+        ]);
+
+        ContactUs::create([
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'service' => $request->service,
+            'message' => $request->message,
+            'ip_address' => $request->ip(),
+        ]);
+
+        return back()->with('success', 'Message sent successfully.');
+    }
+
+    public function submit_pricing_quotes(Request $request)
+    {
+        $request->validate([
+            'first_name' => 'required|max:100',
+            'last_name' => 'required|max:100',
+            'email' => 'required|email',
+            'origin' => 'required|max:100',
+            'destination' => 'required|max:100',
+            'business_category' => 'required|max:100',
+            'monthly_volume' => 'required|max:50',
+        ]);
+
+        try {
+            $cleaned = preg_replace('/[\s\-\+\(\)]/', '', $request->phone);
+
+            if (! is_numeric($cleaned) || strlen($cleaned) < 7 || strlen($cleaned) > 15) {
+                return back()->with('error', 'Please enter a valid phone number.')->withInput();
+            }
+            PricingQuote::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'origin' => $request->origin,
+                'destination' => $request->destination,
+                'business_category' => $request->business_category,
+                'monthly_volume' => $request->monthly_volume,
+                'ip_address' => $request->ip(),
+            ]);
+
+            return back()->with('success', 'Quote request submitted successfully.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Something went wrong. Please try again.')->withInput();
+        }
+    }
+
+    public function submit_partnership_form(Request $request)
+    {
+        $request->validate([
+            'first_name' => 'required|max:100',
+            'last_name' => 'required|max:100',
+            'email' => 'required|email',
+            'phone' => 'required|max:20',
+            'company_name' => 'required|max:255',
+            'message' => 'nullable',
+        ]);
+
+        try {
+            $cleaned = preg_replace('/[\s\-\+\(\)]/', '', $request->phone);
+
+            if (! is_numeric($cleaned) || strlen($cleaned) < 7 || strlen($cleaned) > 15) {
+                return back()->with('error', 'Please enter a valid phone number.')->withInput();
+            }
+
+            PartnershipForm::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'company_name' => $request->company_name,
+                'message' => $request->message,
+                'ip_address' => $request->ip(),
+            ]);
+
+            return back()->with('success', 'Partnership request submitted successfully.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
     }
 }

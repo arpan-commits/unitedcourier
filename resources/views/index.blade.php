@@ -16,12 +16,14 @@
                     {{ $heroData['badge'] ?? 'Trusted by Growing Businesses Across India' }}
                 </div>
                 <h1 class="hero-title mb-4">
-                    {!! $heroData['title'] ?? 'E-commerce Speed. B2B Reliability. Ship Simply <br
-                        class="d-none d-md-block"> <span class="moving-gradient-text">United Couriers.</span>' !!}
+                    {!! $heroData['title'] ??
+                        'E-commerce Speed. B2B Reliability. Ship Simply <br
+                                                                                                                                                                                                            class="d-none d-md-block"> <span class="moving-gradient-text">United Couriers.</span>' !!}
                 </h1>
                 <p class="lead mb-5">
-                    {!! $heroData['subtitle'] ?? 'From First Click to Delivery. Your Gateway to Seamless Shipping
-                    Worldwide.' !!}
+                    {!! $heroData['subtitle'] ??
+                        'From First Click to Delivery. Your Gateway to Seamless Shipping
+                                                                                                                                                                                                        Worldwide.' !!}
                 </p>
 
                 <div class="row g-3 mb-5">
@@ -105,17 +107,20 @@
                         <h3 class="h4-title">Explore Our <span class="gradient-text">Pricing</span></h3>
                     </div>
 
-                    <form>
+                    <form method="POST" action="{{ route('customer.submit_pricing_quotes') }}">
+                        @csrf
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom" placeholder="First Name">
+                                    <input type="text" name="first_name" class="form-control input-custom"
+                                        placeholder="First Name" value="{{ old('first_name') }}" required>
                                     <i class="fas fa-user"></i>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom" placeholder="Last Name">
+                                    <input type="text" name="last_name" class="form-control input-custom"
+                                        placeholder="Last Name" value="{{ old('last_name') }}" required>
                                     <i class="fas fa-user-tag"></i>
                                 </div>
                             </div>
@@ -124,13 +129,15 @@
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="email" class="form-control input-custom" placeholder="Email">
+                                    <input type="email" name="email" class="form-control input-custom"
+                                        placeholder="Email" value="{{ old('email') }}" required>
                                     <i class="fas fa-envelope"></i>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="tel" class="form-control input-custom" placeholder="Phone">
+                                    <input type="tel" name="phone" class="form-control input-custom"
+                                        placeholder="Phone" value="{{ old('phone') }}" required>
                                     <i class="fas fa-phone"></i>
                                 </div>
                             </div>
@@ -139,18 +146,24 @@
                         <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <input type="text" class="form-control input-custom" placeholder="Origin">
+                                    <input type="text" name="origin" class="form-control input-custom"
+                                        placeholder="Origin" value="{{ old('origin') }}" required>
                                     <i class="fas fa-map-marker-alt"></i>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group-custom">
-                                    <select class="form-select input-custom">
-                                        <option selected disabled>Destination</option>
-                                        <option>USA</option>
-                                        <option>UK</option>
-                                        <option>Canada</option>
-                                        <option>Australia</option>
+                                    <select name="destination" class="form-select input-custom" required>
+                                        <option value="" selected disabled>Destination</option>
+                                        <option value="USA" {{ old('destination') == 'USA' ? 'selected' : '' }}>USA
+                                        </option>
+                                        <option value="UK" {{ old('destination') == 'UK' ? 'selected' : '' }}>UK
+                                        </option>
+                                        <option value="Canada" {{ old('destination') == 'Canada' ? 'selected' : '' }}>
+                                            Canada</option>
+                                        <option value="Australia"
+                                            {{ old('destination') == 'Australia' ? 'selected' : '' }}>Australia
+                                        </option>
                                     </select>
                                     <i class="fas fa-globe-americas"></i>
                                 </div>
@@ -159,11 +172,17 @@
 
                         <div class="mb-3">
                             <div class="input-group-custom">
-                                <select class="form-select input-custom">
-                                    <option selected disabled>Select Your Business Category</option>
-                                    <option>E-commerce</option>
-                                    <option>B2B/Export</option>
-                                    <option>Individual</option>
+                                <select name="business_category" class="form-select input-custom" required>
+                                    <option value="" selected disabled>Select Your Business Category</option>
+                                    <option value="E-commerce"
+                                        {{ old('business_category') == 'E-commerce' ? 'selected' : '' }}>E-commerce
+                                    </option>
+                                    <option value="B2B/Export"
+                                        {{ old('business_category') == 'B2B/Export' ? 'selected' : '' }}>B2B/Export
+                                    </option>
+                                    <option value="Individual"
+                                        {{ old('business_category') == 'Individual' ? 'selected' : '' }}>Individual
+                                    </option>
                                 </select>
                                 <i class="fas fa-briefcase"></i>
                             </div>
@@ -171,21 +190,40 @@
 
                         <div class="mb-4">
                             <div class="input-group-custom">
-                                <select class="form-select input-custom" style="border: 2px solid var(--brand-blue);">
-                                    <option selected disabled>Average Monthly Volume?</option>
-                                    <option>0-100</option>
-                                    <option>100-500</option>
-                                    <option>500-1000</option>
-                                    <option>1000+</option>
+                                <select name="monthly_volume" class="form-select input-custom"
+                                    style="border: 2px solid var(--brand-blue);" required>
+                                    <option value="" selected disabled>Average Monthly Volume?</option>
+                                    <option value="0-100" {{ old('monthly_volume') == '0-100' ? 'selected' : '' }}>
+                                        0-100</option>
+                                    <option value="100-500"
+                                        {{ old('monthly_volume') == '100-500' ? 'selected' : '' }}>100-500</option>
+                                    <option value="500-1000"
+                                        {{ old('monthly_volume') == '500-1000' ? 'selected' : '' }}>500-1000</option>
+                                    <option value="1000+" {{ old('monthly_volume') == '1000+' ? 'selected' : '' }}>
+                                        1000+</option>
                                 </select>
                                 <i class="fas fa-chart-line"></i>
                             </div>
                         </div>
 
-                        <button type="button" class="btn moving-gradient-bg btn-primary-custom">
+                        <button type="submit" class="btn moving-gradient-bg btn-primary-custom">
                             Get Quotes
                         </button>
                     </form>
+                    @if (session('success'))
+                        <div class="alert alert-success alert-dismissible fade show my-2" role="alert">
+                            <i class="fas fa-circle-check me-2"></i>
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+                    @if (session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show my-2" role="alert">
+                            <i class="fas fa-circle-xmark me-2"></i>
+                            {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -202,17 +240,19 @@
             <div class="">
                 <span class="heading-badge animate-on-scroll" data-anim="animate__fadeInRight"
                     style="animation-delay: 0.2s;">{{ $aboutData['badge'] ?? 'About United Worldwide Couriers' }}</span>
-                <h2 class="about-title">{{ $aboutData['heading'] ?? 'One Partner. Infinite Logistics Possibilities.' }}
+                <h2 class="about-title">
+                    {{ $aboutData['heading'] ?? 'One Partner. Infinite Logistics Possibilities.' }}
                 </h2>
                 <p class="about-desc animate-on-scroll" data-anim="animate__fadeInUp" style="animation-delay: 0.5s;">
-                    {!! $aboutData['description'] ?? 'United Worldwide Couriers delivers integrated logistics solutions
-                    for modern B2B enterprises, e-commerce brands, and growing businesses. Our services cover
-                    international Air Express & Freight, pan-India pickup, customs clearance with documentation support,
-                    and fulfilment solutions, all managed under one reliable platform. <br> With a strong operational
-                    network and an experienced logistics team, we help clients move shipments efficiently, reduce
-                    delays, and manage complex requirements with confidence. Every shipment is handled with proactive
-                    coordination, transparent tracking, and dedicated customer support to ensure a smooth and dependable
-                    delivery experience.' !!}
+                    {!! $aboutData['description'] ??
+                        'United Worldwide Couriers delivers integrated logistics solutions
+                                                                                                                                                                                                        for modern B2B enterprises, e-commerce brands, and growing businesses. Our services cover
+                                                                                                                                                                                                        international Air Express & Freight, pan-India pickup, customs clearance with documentation support,
+                                                                                                                                                                                                        and fulfilment solutions, all managed under one reliable platform. <br> With a strong operational
+                                                                                                                                                                                                        network and an experienced logistics team, we help clients move shipments efficiently, reduce
+                                                                                                                                                                                                        delays, and manage complex requirements with confidence. Every shipment is handled with proactive
+                                                                                                                                                                                                        coordination, transparent tracking, and dedicated customer support to ensure a smooth and dependable
+                                                                                                                                                                                                        delivery experience.' !!}
                 </p>
             </div>
             <!-- Image Side -->
@@ -282,8 +322,11 @@
     <section class="stack-container container">
 
         <h2 class="display-5 fw-bolder mb-3 animate-on-scroll" data-anim="animate__fadeInRight"
-            style="animation-delay: 0.2s;">{!! $servicesHeading['heading'] ?? 'Powering Your Business with <span class="moving-gradient-text"> Our Services</span>' !!}</h2>
-        <p class="about-desc mb-5 animate-on-scroll" data-anim="animate__fadeInUp" style="animation-delay: 0.5s;">{{ $servicesHeading['description'] ?? 'From urgent documents to high-volume commercial cargo, our logistics solutions are built to move every shipment with speed, precision, and complete reliability.' }}</p>
+            style="animation-delay: 0.2s;">{!! $servicesHeading['heading'] ??
+                'Powering Your Business with <span class="moving-gradient-text"> Our Services</span>' !!}</h2>
+        <p class="about-desc mb-5 animate-on-scroll" data-anim="animate__fadeInUp" style="animation-delay: 0.5s;">
+            {{ $servicesHeading['description'] ?? 'From urgent documents to high-volume commercial cargo, our logistics solutions are built to move every shipment with speed, precision, and complete reliability.' }}
+        </p>
 
         <div class="stack-wrapper">
             <!-- Card 1 -->
@@ -547,10 +590,12 @@
         <div class="animate-on-scroll show animate__animated animate__fadeInRight" data-anim="animate__fadeInRight"
             style="animation-delay: 0.2s;">
             @php
-            $headingRecord = $shippingSolutions->firstWhere('field_name', 'heading');
-            $descRecord = $shippingSolutions->firstWhere('field_name', 'description');
-            $shippingHeading = $headingRecord ? $headingRecord->content : 'Shipping Solutions Designed Around You!';
-            $shippingDesc = $descRecord ? $descRecord->content : 'No two businesses ship the same way. That’s why United
+                $headingRecord = $shippingSolutions->firstWhere('field_name', 'heading');
+                $descRecord = $shippingSolutions->firstWhere('field_name', 'description');
+                $shippingHeading = $headingRecord ? $headingRecord->content : 'Shipping Solutions Designed Around You!';
+                $shippingDesc = $descRecord
+                    ? $descRecord->content
+                    : 'No two businesses ship the same way. That’s why United
             Worldwide Couriers offers flexible logistics solutions built around your shipment type, delivery timeline,
             budget, and business goals. Whether you need B2B Export Support, Dropshipping Solutions, Marketplace
             shipping, or personal deliveries for friends and family, we help you choose the right service with clarity,
@@ -572,14 +617,15 @@
             <!-- Card 1: Engage 360 -->
             <div class="sr-demo-product-card sr-active animate__animated animate__fadeInLeft" id="sr-card-0">
                 <div class="sr-demo-card-content">
-                    <h3 class="sr-demo-card-title">{{ $shippingSolution1['card_title'] ?? 'B2B Shipping Made Simple' }}
+                    <h3 class="sr-demo-card-title">
+                        {{ $shippingSolution1['card_title'] ?? 'B2B Shipping Made Simple' }}
                     </h3>
                     <p class="sr-demo-card-description">
                         {{ $shippingSolution1['card_desc'] ?? 'Move commercial shipments with confidence. We support exporters, manufacturers, distributors, and growing businesses with secure handling, flexible delivery options, documentation support, and competitive pricing for bulk volumes.' }}
                     </p>
                     <ul style="margin-left:-12px; margin-top:-12px;" class="sr-demo-card-description">
                         <li>
-                                <strong>{!! $shippingSolution1['card_point1'] ?? 'Fragile Goods' !!}</strong>
+                            <strong>{!! $shippingSolution1['card_point1'] ?? 'Fragile Goods' !!}</strong>
 
                             <!-- {{ $shippingSolution1['card_point1'] ?? 'Secure handling for sensitive and high-volume shipments.' }} -->
                         </li>
@@ -587,7 +633,8 @@
                             <!-- {{ $shippingSolution1['card_point2'] ?? 'Cost-effective solutions and customs clearance support.' }} -->
                         </li>
                     </ul>
-                    <a href="#" class="sr-demo-btn-live">{{ $shippingSolution1['card_cta'] ?? 'Start Shipping' }}</a>
+                    <a href="#"
+                        class="sr-demo-btn-live">{{ $shippingSolution1['card_cta'] ?? 'Start Shipping' }}</a>
                 </div>
                 <div class="sr-demo-card-visual sr-bg-engage">
                     <img src="{{ asset('/website_images/marketplace.webp') }}" class="sr-image img-fluid">
@@ -597,7 +644,8 @@
             <!-- Card 2: Shipping -->
             <div class="sr-demo-product-card animate__animated animate__fadeInUp" id="sr-card-1">
                 <div class="sr-demo-card-content">
-                    <h3 class="sr-demo-card-title">{{ $shippingSolution2['card_title'] ?? 'Marketplace Shipping' }}</h3>
+                    <h3 class="sr-demo-card-title">{{ $shippingSolution2['card_title'] ?? 'Marketplace Shipping' }}
+                    </h3>
                     <p class="sr-demo-card-description">
                         {{ $shippingSolution2['card_desc'] ?? 'Connect your online store with our shipping platform and manage orders from leading marketplaces like Amazon, eBay, Etsy, Walmart, and more, with faster processing, real-time tracking, and reliable delivery support.' }}
                     </p>
@@ -608,7 +656,8 @@
                             <!-- {{ $shippingSolution2['card_point2'] ?? 'Built for marketplace sellers handling small packages daily and high volume' }} -->
                         </li>
                     </ul>
-                    <a href="#" class="sr-demo-btn-live">{{ $shippingSolution2['card_cta'] ?? 'Start Shipping' }}</a>
+                    <a href="#"
+                        class="sr-demo-btn-live">{{ $shippingSolution2['card_cta'] ?? 'Start Shipping' }}</a>
                 </div>
                 <div class="sr-demo-card-visual sr-bg-shipping">
                     <img src="{{ asset('/website_images/dropshipping.webp') }}" class="sr-image img-fluid">
@@ -632,7 +681,8 @@
                         <li><strong>{!! $shippingSolution3['card_point2'] ?? 'Automated Order flow' !!}</strong>
                             <!-- {{ $shippingSolution3['card_point2'] ?? 'Manage. Process. Dispatch' }}</li> -->
                     </ul>
-                    <a href="#" class="sr-demo-btn-live">{{ $shippingSolution3['card_cta'] ?? 'Start Shipping' }}</a>
+                    <a href="#"
+                        class="sr-demo-btn-live">{{ $shippingSolution3['card_cta'] ?? 'Start Shipping' }}</a>
                 </div>
                 <div class="sr-demo-card-visual sr-bg-checkout">
                     <img src="{{ asset('/website_images/b2b.webp') }}" class="sr-image img-fluid">
@@ -642,7 +692,8 @@
             <!-- Card 4: Checkout -->
             <div class="sr-demo-product-card animate__animated animate__fadeInRight" id="sr-card-3">
                 <div class="sr-demo-card-content">
-                    <h3 class="sr-demo-card-title">{{ $shippingSolution4['card_title'] ?? 'Overseas Friends & Family' }}
+                    <h3 class="sr-demo-card-title">
+                        {{ $shippingSolution4['card_title'] ?? 'Overseas Friends & Family' }}
                     </h3>
                     <p class="sr-demo-card-description">
                         {{ $shippingSolution4['card_desc'] ?? 'Send personal packages to your loved ones worldwide with safe handling, timely delivery, and clear updates at every step.' }}
@@ -654,7 +705,8 @@
                         <li><strong>{!! $shippingSolution4['card_point2'] ?? 'Live Updates' !!}</strong>
                             <!-- {{ $shippingSolution4['card_point2'] ?? 'Stay informed from pickup to delivery.' }}</li> -->
                     </ul>
-                    <a href="#" class="sr-demo-btn-live">{{ $shippingSolution4['card_cta'] ?? 'Book Shipment' }}</a>
+                    <a href="#"
+                        class="sr-demo-btn-live">{{ $shippingSolution4['card_cta'] ?? 'Book Shipment' }}</a>
                 </div>
                 <div class="sr-demo-card-visual sr-bg-checkout">
                     <img src="{{ asset('/website_images/b2b.webp') }}" class="sr-image img-fluid">
@@ -676,7 +728,8 @@
                         <img src="{{ asset('/website_images/google-review.png') }}" alt="Google">
                     </a>
                 </div>
-                <h2 class="about-title">{{ $testimonialHeading['heading'] ?? 'Trusted by Businesses. Rated by Customers' }}</h2>
+                <h2 class="about-title">
+                    {{ $testimonialHeading['heading'] ?? 'Trusted by Businesses. Rated by Customers' }}</h2>
 
                 <p class="about-desc text-center">
                     {{ $testimonialHeading['description'] ?? 'For over 30 years, United Worldwide Couriers has supported businesses and individuals with secure, timely, and dependable logistics solutions. Our clients trust us for consistent service, transparent communication, careful handling, and smooth delivery experiences across domestic and international shipments.' }}
@@ -688,35 +741,35 @@
             <div class="slider-track">
 
                 <!-- Cards -->
-                @if($testimonials->count() > 0)
-                @foreach($testimonials as $testimonial)
-                <div class="testimonial-card">
-                    <div class="stars">{{ str_repeat('★', $testimonial->rating ?? 5) }}</div>
-                    <p class="testimonial-text">{{ $testimonial->content }}</p>
-                    <div class="user-info">
-                        <img src="{{ asset($testimonial->customer_image) }}" class="img-fluid"
-                            alt="{{ $testimonial->customer_name }}">
-                        <h6>{{ $testimonial->customer_name }}</h6>
-                    </div>
-                </div>
-                @endforeach
+                @if ($testimonials->count() > 0)
+                    @foreach ($testimonials as $testimonial)
+                        <div class="testimonial-card">
+                            <div class="stars">{{ str_repeat('★', $testimonial->rating ?? 5) }}</div>
+                            <p class="testimonial-text">{{ $testimonial->content }}</p>
+                            <div class="user-info">
+                                <img src="{{ asset($testimonial->customer_image) }}" class="img-fluid"
+                                    alt="{{ $testimonial->customer_name }}">
+                                <h6>{{ $testimonial->customer_name }}</h6>
+                            </div>
+                        </div>
+                    @endforeach
                 @else
-                <p>No testimonials found.</p>
+                    <p>No testimonials found.</p>
                 @endif
 
                 <!-- Duplicate for seamless loop -->
-                @if($testimonials->count() > 0)
-                @foreach($testimonials as $testimonial)
-                <div class="testimonial-card">
-                    <div class="stars">{{ str_repeat('★', $testimonial->rating ?? 5) }}</div>
-                    <p class="testimonial-text">{{ $testimonial->content }}</p>
-                    <div class="user-info">
-                        <img src="{{ asset($testimonial->customer_image) }}" class="img-fluid"
-                            alt="{{ $testimonial->customer_name }}">
-                        <h6>{{ $testimonial->customer_name }}</h6>
-                    </div>
-                </div>
-                @endforeach
+                @if ($testimonials->count() > 0)
+                    @foreach ($testimonials as $testimonial)
+                        <div class="testimonial-card">
+                            <div class="stars">{{ str_repeat('★', $testimonial->rating ?? 5) }}</div>
+                            <p class="testimonial-text">{{ $testimonial->content }}</p>
+                            <div class="user-info">
+                                <img src="{{ asset($testimonial->customer_image) }}" class="img-fluid"
+                                    alt="{{ $testimonial->customer_name }}">
+                                <h6>{{ $testimonial->customer_name }}</h6>
+                            </div>
+                        </div>
+                    @endforeach
                 @endif
 
             </div>
@@ -736,32 +789,32 @@
 
         <div class="row g-4">
             <div class="col-lg-4">
-               @include('website_include.faq-support-form')
-           </div>
+                @include('website_include.faq-support-form')
+            </div>
 
 
             <div class="col-lg-8">
                 <div class="accordion" id="logisticsFaq">
                     <!-- @php
-                        echo "<pre>";
+                        echo '<pre>';
                         print_r($faqs);
-                        echo "</pre>";
+                        echo '</pre>';
                     @endphp -->
-                    @foreach($faqs as $faq)
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#faq{{ $loop->index }}">
-                                {{ $faq->question }}
-                            </button>
-                        </h2>
-                        <div id="faq{{ $loop->index }}" class="accordion-collapse collapse"
-                            data-bs-parent="#logisticsFaq">
-                            <div class="accordion-body">
-                                {!! $faq->answer !!}
+                    @foreach ($faqs as $faq)
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq{{ $loop->index }}">
+                                    {{ $faq->question }}
+                                </button>
+                            </h2>
+                            <div id="faq{{ $loop->index }}" class="accordion-collapse collapse"
+                                data-bs-parent="#logisticsFaq">
+                                <div class="accordion-body">
+                                    {!! $faq->answer !!}
+                                </div>
                             </div>
                         </div>
-                    </div>
                     @endforeach
                 </div>
             </div>

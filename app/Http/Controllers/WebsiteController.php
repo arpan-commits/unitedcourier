@@ -2,28 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\HomePageContent;
 use App\Models\AboutPageContent;
-use App\Models\ServicePage;
-use App\Models\VolumetricCalculatorPage;
-use App\Models\NetworkOffice;
-use App\Models\TermsAndConditionPage;
-use App\Models\PrivacyPolicyPage;
-use App\Models\RefundAndCancellationPolicyPage;
-use App\Models\ContactUsPage;
-use App\Models\WarehousingSolutionsPage;
-use App\Models\WarehousingTestimonial;
-use App\Models\Testimonial;
-use App\Models\EcommerceLogisticsSolutionsPage;
+use App\Models\BarcodeGeneratorPage;
 use App\Models\Blog;
 use App\Models\BlogCategory;
+use App\Models\ContactUsPage;
+use App\Models\CurrencyCalculatorPage;
+use App\Models\DocumentDownloadPage;
+use App\Models\Ebook;
+use App\Models\EcommerceLogisticsSolutionsPage;
 use App\Models\ExpressAirFreightSolutionsPage;
-use App\Models\BarcodeGeneratorPage;
-use App\Models\ShippingRateCalculatorPage;
-use App\Models\HsnFinderPage;
-use App\Models\Faq;
 use App\Models\FactNumberSectionCommonPage;
+use App\Models\Faq;
+use App\Models\FaqQuery;
+use App\Models\HomePageContent;
+use App\Models\HsnFinderPage;
+use App\Models\NetworkOffice;
+use App\Models\PartnershipPage;
+use App\Models\PrivacyPolicyPage;
+use App\Models\RefundAndCancellationPolicyPage;
+use App\Models\ServicePage;
+use App\Models\ShippingRateCalculatorPage;
+use App\Models\Subscriber;
+use App\Models\TermsAndConditionPage;
+use App\Models\Testimonial;
+use App\Models\TrackOrderPage;
+use App\Models\VolumetricCalculatorPage;
+use App\Models\WarehousingSolutionsPage;
+use App\Models\WebinarPage;
+use App\Models\WorldTimePage;
+use App\Models\WorldWeatherPage;
+use Illuminate\Http\Request;
 
 class WebsiteController extends Controller
 {
@@ -128,7 +137,7 @@ class WebsiteController extends Controller
     public function about()
     {
         $aboutContent = AboutPageContent::all();
-        
+
         // Group by section type
         $heroContent = $aboutContent->where('section_type', 'hero')->first();
         $overview = $aboutContent->where('section_type', 'overview')->first();
@@ -157,20 +166,21 @@ class WebsiteController extends Controller
         ));
     }
 
-
     // service pages
-    public function service(){
+    public function service()
+    {
         $services = ServicePage::bySection('services')->active()->ordered()->get();
         $testimonials = Testimonial::byPage('service')->active()->ordered()->get();
         $faqs = Faq::byPage('service')->active()->ordered()->get();
         $partners = ServicePage::bySection('partners')->active()->ordered()->get();
         $commonStats = $this->getCommonStats();
-        
+
         return view('service', compact('services', 'testimonials', 'faqs', 'partners', 'commonStats'));
     }
 
     // volumetric calculator page
-    public function volumetricCalculator(){
+    public function volumetricCalculator()
+    {
         $heroData = VolumetricCalculatorPage::bySection('hero')->where('page', 'volumetric-calculator')->first();
         $featuresHeader = VolumetricCalculatorPage::bySection('features_header')->where('page', 'volumetric-calculator')->first();
         $features = VolumetricCalculatorPage::bySection('features')->where('page', 'volumetric-calculator')->ordered()->get();
@@ -180,34 +190,37 @@ class WebsiteController extends Controller
         $faqSidebar = VolumetricCalculatorPage::bySection('faq_sidebar')->where('page', 'volumetric-calculator')->first();
         $faqs = Faq::byPage('volumetric-calculator')->active()->ordered()->get();
         $calculator = VolumetricCalculatorPage::bySection('calculator')->where('page', 'volumetric-calculator')->first();
-        
+
         return view('volumetric-calculator', compact(
-            'heroData', 'featuresHeader', 'features', 'trackCta', 
+            'heroData', 'featuresHeader', 'features', 'trackCta',
             'testimonialsHeader', 'testimonials', 'faqSidebar', 'faqs', 'calculator'
         ));
     }
 
-    public function network(){
+    public function network()
+    {
         $indiaOffices = NetworkOffice::india()->active()->ordered()->get();
         $overseasOffices = NetworkOffice::overseas()->active()->ordered()->get();
         $testimonials = Testimonial::byPage('network')->active()->ordered()->get();
-        $faqs = \App\Models\Faq::byPage('network')->active()->ordered()->get();
-        
+        $faqs = Faq::byPage('network')->active()->ordered()->get();
+
         return view('network', compact('indiaOffices', 'overseasOffices', 'testimonials', 'faqs'));
     }
 
-    public function termsAndConditions(){
+    public function termsAndConditions()
+    {
         $pageMeta = TermsAndConditionPage::bySection('_page_meta')->first();
         $sections = TermsAndConditionPage::where('section_key', '!=', '_page_meta')
             ->ordered()
             ->get();
-        
+
         return view('terms-and-conditions', compact(
             'pageMeta', 'sections'
         ));
     }
 
-    public function privacyPolicy(){
+    public function privacyPolicy()
+    {
         $pageMeta = PrivacyPolicyPage::bySection('_page_meta')->latest('id')->first();
         $dataCollection = PrivacyPolicyPage::bySection('data_collection')->latest('id')->first();
         $dataUsage = PrivacyPolicyPage::bySection('data_usage')->latest('id')->first();
@@ -226,7 +239,7 @@ class WebsiteController extends Controller
             ->map(function ($items) {
                 return $items->last(); // Get the latest record for each section_key
             });
-        
+
         return view('privacy-policy', compact(
             'pageMeta', 'dataCollection', 'dataUsage', 'dataSharing',
             'dataSecurity', 'userRights', 'cookiesPolicy', 'policyUpdates',
@@ -234,78 +247,86 @@ class WebsiteController extends Controller
         ));
     }
 
-    public function refundAndCancellationPolicy(){
+    public function refundAndCancellationPolicy()
+    {
         $pageMeta = RefundAndCancellationPolicyPage::bySection('_page_meta')->first();
         $cancellationPolicy = RefundAndCancellationPolicyPage::bySection('cancellation_policy')->first();
         $refundEligibility = RefundAndCancellationPolicyPage::bySection('refund_eligibility')->first();
         $refundProcess = RefundAndCancellationPolicyPage::bySection('refund_process')->first();
         $nonRefundableItems = RefundAndCancellationPolicyPage::bySection('non_refundable_items')->first();
         $serviceDelays = RefundAndCancellationPolicyPage::bySection('service_delays')->first();
-        
+
         return view('refund-and-cancellation-policy', compact(
-            'pageMeta', 'cancellationPolicy', 'refundEligibility', 'refundProcess', 
+            'pageMeta', 'cancellationPolicy', 'refundEligibility', 'refundProcess',
             'nonRefundableItems', 'serviceDelays'
         ));
     }
 
     public function partner()
     {
-        $hero = \App\Models\PartnershipPage::bySection('hero')->active()->first();
-        $aboutSection = \App\Models\PartnershipPage::bySection('about')->active()->first();
-        $features = \App\Models\PartnershipPage::bySection('features')->active()->ordered()->get();
-        $ecosystemSection = \App\Models\PartnershipPage::bySection('ecosystem')->active()->first();
-        $ecosystemGlobalCards = \App\Models\PartnershipPage::bySection('ecosystem_global')->active()->ordered()->get();
-        $ecosystemPartnerCards = \App\Models\PartnershipPage::bySection('ecosystem_partner')->active()->ordered()->get();
-        $faqSection = \App\Models\PartnershipPage::bySection('faq')->active()->first();
+        $hero = PartnershipPage::bySection('hero')->active()->first();
+        $aboutSection = PartnershipPage::bySection('about')->active()->first();
+        $features = PartnershipPage::bySection('features')->active()->ordered()->get();
+        $ecosystemSection = PartnershipPage::bySection('ecosystem')->active()->first();
+        $ecosystemGlobalCards = PartnershipPage::bySection('ecosystem_global')->active()->ordered()->get();
+        $ecosystemPartnerCards = PartnershipPage::bySection('ecosystem_partner')->active()->ordered()->get();
+        $faqSection = PartnershipPage::bySection('faq')->active()->first();
         $faqItems = Faq::byPage('partnership')->active()->ordered()->get();
-        $formSection = \App\Models\PartnershipPage::bySection('partner_form')->active()->first();
+        $formSection = PartnershipPage::bySection('partner_form')->active()->first();
+
         // $partnerLogos is now globally shared via AppServiceProvider
         return view('partnership', compact('hero', 'aboutSection', 'features', 'ecosystemSection', 'ecosystemGlobalCards', 'ecosystemPartnerCards', 'faqSection', 'faqItems', 'formSection'));
     }
 
     public function webinar()
     {
-        $webinars = \App\Models\WebinarPage::whereNull('section')->active()->ordered()->get();
-        $heroContent = \App\Models\WebinarPage::bySection('hero')->active()->first();
+        $webinars = WebinarPage::whereNull('section')->active()->ordered()->get();
+        $heroContent = WebinarPage::bySection('hero')->active()->first();
+
         return view('webinar', compact('webinars', 'heroContent'));
     }
 
     public function currencyCalculator()
     {
-        $hero = \App\Models\CurrencyCalculatorPage::bySection('hero')->active()->ordered()->first();
-        $featuresHeader = \App\Models\CurrencyCalculatorPage::bySection('features')->where('item_key', 'features_header')->active()->first();
-        $featureCards = \App\Models\CurrencyCalculatorPage::bySection('features')->where('item_key', 'like', 'feature_card_%')->active()->ordered()->get();
+        $hero = CurrencyCalculatorPage::bySection('hero')->active()->ordered()->first();
+        $featuresHeader = CurrencyCalculatorPage::bySection('features')->where('item_key', 'features_header')->active()->first();
+        $featureCards = CurrencyCalculatorPage::bySection('features')->where('item_key', 'like', 'feature_card_%')->active()->ordered()->get();
+
         return view('currency-calculator', compact('hero', 'featuresHeader', 'featureCards'));
     }
 
     public function worldWeather()
     {
-        $hero = \App\Models\WorldWeatherPage::bySection('hero')->active()->ordered()->first();
-        $weatherHeader = \App\Models\WorldWeatherPage::bySection('weather_cities')->where('item_key', 'weather_cities_header')->active()->first();
-        $weatherCities = \App\Models\WorldWeatherPage::bySection('weather_cities')->where('item_key', 'like', 'city_%')->active()->ordered()->get();
-        $featuresHeader = \App\Models\WorldWeatherPage::bySection('features')->where('item_key', 'features_header')->active()->first();
-        $featureCards = \App\Models\WorldWeatherPage::bySection('features')->where('item_key', 'like', 'feature_card_%')->active()->ordered()->get();
+        $hero = WorldWeatherPage::bySection('hero')->active()->ordered()->first();
+        $weatherHeader = WorldWeatherPage::bySection('weather_cities')->where('item_key', 'weather_cities_header')->active()->first();
+        $weatherCities = WorldWeatherPage::bySection('weather_cities')->where('item_key', 'like', 'city_%')->active()->ordered()->get();
+        $featuresHeader = WorldWeatherPage::bySection('features')->where('item_key', 'features_header')->active()->first();
+        $featureCards = WorldWeatherPage::bySection('features')->where('item_key', 'like', 'feature_card_%')->active()->ordered()->get();
+
         return view('world-weather', compact('hero', 'weatherHeader', 'weatherCities', 'featuresHeader', 'featureCards'));
     }
 
     public function worldTime()
     {
-        $hero = \App\Models\WorldTimePage::bySection('hero')->active()->ordered()->first();
-        $timeHeader = \App\Models\WorldTimePage::bySection('time_cities')->where('item_key', 'time_cities_header')->active()->first();
-        $timeCities = \App\Models\WorldTimePage::bySection('time_cities')->where('item_key', 'like', 'city_%')->active()->ordered()->get();
-        $featuresHeader = \App\Models\WorldTimePage::bySection('features')->where('item_key', 'features_header')->active()->first();
-        $featureCards = \App\Models\WorldTimePage::bySection('features')->where('item_key', 'like', 'feature_card_%')->active()->ordered()->get();
+        $hero = WorldTimePage::bySection('hero')->active()->ordered()->first();
+        $timeHeader = WorldTimePage::bySection('time_cities')->where('item_key', 'time_cities_header')->active()->first();
+        $timeCities = WorldTimePage::bySection('time_cities')->where('item_key', 'like', 'city_%')->active()->ordered()->get();
+        $featuresHeader = WorldTimePage::bySection('features')->where('item_key', 'features_header')->active()->first();
+        $featureCards = WorldTimePage::bySection('features')->where('item_key', 'like', 'feature_card_%')->active()->ordered()->get();
+
         return view('world-time', compact('hero', 'timeHeader', 'timeCities', 'featuresHeader', 'featureCards'));
     }
 
-    public function contactUs(){
+    public function contactUs()
+    {
         $pageMeta = ContactUsPage::bySection('hero')->first();
         $contactInfo = ContactUsPage::bySection('contact_info')->first();
-        
+
         return view('contact-us', compact('pageMeta', 'contactInfo'));
     }
 
-    public function warehousingSolutions(){
+    public function warehousingSolutions()
+    {
         $heroContent = WarehousingSolutionsPage::bySection('hero')->active()->first();
         $overviewContent = WarehousingSolutionsPage::bySection('overview')->active()->first();
         $featuresHeaderContent = WarehousingSolutionsPage::bySection('features')->where('item_key', 'features_header')->active()->first();
@@ -315,14 +336,15 @@ class WebsiteController extends Controller
         $faqContent = Faq::byPage('warehousing')->active()->ordered()->get();
         $ctaContent = WarehousingSolutionsPage::bySection('cta')->active()->first();
         $commonStats = $this->getCommonStats();
-        
+
         return view('warehousing-solutions', compact(
             'heroContent', 'overviewContent', 'featuresHeaderContent', 'featuresContent', 'testimonials', 'faqContent', 'faqHeaderContent', 'ctaContent', 'commonStats'
         ));
     }
 
     // e-commerce logistics solutions page
-    public function ecommerceLogisticsSolutions(){
+    public function ecommerceLogisticsSolutions()
+    {
         $heroContent = EcommerceLogisticsSolutionsPage::bySection('hero')->active()->first();
         $overviewContent = EcommerceLogisticsSolutionsPage::bySection('overview')->active()->first();
         $featuresHeaderContent = EcommerceLogisticsSolutionsPage::bySection('features')->where('item_key', 'features_header')->active()->first();
@@ -332,7 +354,7 @@ class WebsiteController extends Controller
         $faqHeader = EcommerceLogisticsSolutionsPage::bySection('faq')->where('item_key', 'faq_header')->active()->first();
         $faqs = Faq::byPage('ecommerce-logistics')->active()->ordered()->get();
         $commonStats = $this->getCommonStats();
-        
+
         return view('e-commerce-logistics-solutions', compact(
             'heroContent', 'overviewContent', 'featuresHeaderContent', 'featuresContent',
             'testimonialsHeader', 'testimonials', 'faqHeader', 'faqs', 'commonStats'
@@ -340,7 +362,8 @@ class WebsiteController extends Controller
     }
 
     // Express Air Freight Solutions page
-    public function expressAirFreightSolutions(){
+    public function expressAirFreightSolutions()
+    {
         $heroContent = ExpressAirFreightSolutionsPage::bySection('hero')->active()->first();
         $overviewContent = ExpressAirFreightSolutionsPage::bySection('overview')->active()->first();
         $featuresHeaderContent = ExpressAirFreightSolutionsPage::bySection('features')->where('item_key', 'features_header')->active()->first();
@@ -350,7 +373,7 @@ class WebsiteController extends Controller
         $faqHeader = ExpressAirFreightSolutionsPage::bySection('faq')->where('item_key', 'faq_header')->active()->first();
         $faqs = Faq::byPage('express-air')->active()->ordered()->get();
         $commonStats = $this->getCommonStats();
-        
+
         return view('express-air-freight-solutions', compact(
             'heroContent', 'overviewContent', 'featuresHeaderContent', 'featuresContent',
             'testimonialsHeader', 'testimonials', 'faqHeader', 'faqs', 'commonStats'
@@ -359,16 +382,16 @@ class WebsiteController extends Controller
 
     public function trackOrder()
     {
-        $trackOrderPage = \App\Models\TrackOrderPage::ordered()->get();
-        $heroContent = \App\Models\TrackOrderPage::bySection('hero')->active()->first();
-        $trackFormContent = \App\Models\TrackOrderPage::bySection('track_form')->active()->first();
-        $featuresHeader = \App\Models\TrackOrderPage::bySection('features')->where('item_key', 'features_header')->active()->first();
-        $featuresContent = \App\Models\TrackOrderPage::bySection('features')->where('item_key', '!=', 'features_header')->active()->ordered()->get();
-        $aboutContent = \App\Models\TrackOrderPage::bySection('about')->active()->first();
-        $ctaContent = \App\Models\TrackOrderPage::bySection('cta')->active()->first();
-        $faqHeader = \App\Models\TrackOrderPage::bySection('faq')->where('item_key', 'faq_header')->active()->first();
+        $trackOrderPage = TrackOrderPage::ordered()->get();
+        $heroContent = TrackOrderPage::bySection('hero')->active()->first();
+        $trackFormContent = TrackOrderPage::bySection('track_form')->active()->first();
+        $featuresHeader = TrackOrderPage::bySection('features')->where('item_key', 'features_header')->active()->first();
+        $featuresContent = TrackOrderPage::bySection('features')->where('item_key', '!=', 'features_header')->active()->ordered()->get();
+        $aboutContent = TrackOrderPage::bySection('about')->active()->first();
+        $ctaContent = TrackOrderPage::bySection('cta')->active()->first();
+        $faqHeader = TrackOrderPage::bySection('faq')->where('item_key', 'faq_header')->active()->first();
         $faqs = Faq::byPage('track-order')->active()->ordered()->get();
-        
+
         return view('track-order', compact(
             'trackOrderPage', 'heroContent', 'trackFormContent',
             'featuresHeader', 'featuresContent', 'aboutContent',
@@ -378,11 +401,12 @@ class WebsiteController extends Controller
 
     public function eBooks()
     {
-        $ebooks = \App\Models\Ebook::whereNull('section')->active()->ordered()->get();
-        $heroContent = \App\Models\Ebook::bySection('hero')->active()->first();
-        $sectionHeader = \App\Models\Ebook::bySection('section_header')->active()->first();
-        $faqHeader = \App\Models\Ebook::bySection('faq')->where('item_key', 'faq_header')->active()->first();
+        $ebooks = Ebook::whereNull('section')->active()->ordered()->get();
+        $heroContent = Ebook::bySection('hero')->active()->first();
+        $sectionHeader = Ebook::bySection('section_header')->active()->first();
+        $faqHeader = Ebook::bySection('faq')->where('item_key', 'faq_header')->active()->first();
         $faqs = Faq::byPage('e-books')->active()->ordered()->get();
+
         return view('e-books', compact('ebooks', 'heroContent', 'sectionHeader', 'faqHeader', 'faqs'));
     }
 
@@ -393,7 +417,7 @@ class WebsiteController extends Controller
                 'badge' => 'Knowledge Base',
                 'title' => 'Read Our <span class="moving-gradient-text">Blogs & Articles.</span>',
                 'description' => 'Explore expert perspectives, success stories, and shipping strategies shaping the future of commerce.',
-            ]
+            ],
         ];
         $blogs = Blog::active()->ordered()->get();
         $categories = BlogCategory::active()->get();
@@ -406,8 +430,9 @@ class WebsiteController extends Controller
      */
     public function documentDownload()
     {
-        $documents = \App\Models\DocumentDownloadPage::active()->ordered()->get();
-        $pageMeta = \App\Models\DocumentDownloadPage::bySection('page_meta')->active()->first();
+        $documents = DocumentDownloadPage::active()->ordered()->get();
+        $pageMeta = DocumentDownloadPage::bySection('page_meta')->active()->first();
+
         return view('document-download', compact('documents', 'pageMeta'));
     }
 
@@ -521,7 +546,7 @@ class WebsiteController extends Controller
         $email = $request->input('email');
 
         // Check if already subscribed
-        $existing = \App\Models\Subscriber::where('email', $email)->first();
+        $existing = Subscriber::where('email', $email)->first();
         if ($existing) {
             return response()->json([
                 'success' => false,
@@ -529,7 +554,7 @@ class WebsiteController extends Controller
             ]);
         }
 
-        \App\Models\Subscriber::create([
+        Subscriber::create([
             'email' => $email,
         ]);
 
@@ -546,22 +571,22 @@ class WebsiteController extends Controller
     {
         $request->validate([
             'full_name' => 'required|string|max:255',
-            'email'     => 'required|email|max:255',
-            'phone'     => 'required|string|max:20',
-            'message'   => 'required|string',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:20',
+            'message' => 'required|string',
         ]);
 
-        \App\Models\FaqQuery::create([
+        FaqQuery::create([
             'full_name' => $request->input('full_name'),
-            'email'     => $request->input('email'),
-            'phone'     => $request->input('phone'),
-            'message'   => $request->input('message'),
-            'page_name' => $request->input('page_name'),
+            'email' => $request->input('email'),
+            'phone' => $request->input('phone'),
+            'message' => $request->input('message'),
+            'page_name' => url()->previous(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Thank you! Your query has been submitted. We will get back to you shortly.',
+            'message' => 'Your query has been submitted.',
         ]);
     }
 

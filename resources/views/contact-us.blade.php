@@ -1,5 +1,13 @@
 @include('website_include.header')
-
+<!-- Success Modal -->
+@if (session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('contact-form-ui').style.display = 'none';
+            document.getElementById('form-success').style.display = 'block';
+        });
+    </script>
+@endif
 
 
 <style>
@@ -252,7 +260,7 @@
 
                     <div class="social-links">
                         <a href="#" class="social-link"><i class="fa-brands fa-facebook-f"></i></a>
-                        <a href="#" class="social-link"><i class="fa-brands fa-x-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fa-brands fa-twitter"></i></a>
                         <a href="#" class="social-link"><i class="fa-brands fa-linkedin-in"></i></a>
                         <a href="#" class="social-link"><i class="fa-brands fa-instagram"></i></a>
                     </div>
@@ -260,44 +268,80 @@
             </div>
 
             <!-- Contact Form -->
+            <!-- Contact Form -->
             <div class="col-lg-7">
                 <div class="contact-form-panel">
                     <div id="contact-form-ui">
                         <h4 class="fw-bold mb-4" style="font-family: 'Outfit', sans-serif;">Send us a message</h4>
-                        <form id="main-contact-form">
+                        <form method="POST" action="{{ route('customer.contact-us.submit') }}">
+                            @csrf
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">First Name</label>
-                                    <input type="text" class="form-control" placeholder="John" required>
+                                    <input type="text" name="first_name"
+                                        class="form-control @error('first_name') is-invalid @enderror"
+                                        placeholder="John" value="{{ old('first_name') }}" required>
+                                    @error('first_name')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Last Name</label>
-                                    <input type="text" class="form-control" placeholder="Doe" required>
+                                    <input type="text" name="last_name"
+                                        class="form-control @error('last_name') is-invalid @enderror" placeholder="Doe"
+                                        value="{{ old('last_name') }}" required>
+                                    @error('last_name')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" placeholder="john@company.com" required>
+                                    <input type="email" name="email"
+                                        class="form-control @error('email') is-invalid @enderror"
+                                        placeholder="john@company.com" value="{{ old('email') }}" required>
+                                    @error('email')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" placeholder="+91 XXXX XXX XXX" required>
+                                    <input type="tel" name="phone"
+                                        class="form-control @error('phone') is-invalid @enderror"
+                                        placeholder="+91 XXXX XXX XXX" value="{{ old('phone') }}" required>
+                                    @error('phone')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Service Required</label>
-                                <select class="form-select">
-                                    <option selected disabled>Select a service</option>
-                                    <option>International Shipping</option>
-                                    <option>E-commerce Fulfillment</option>
-                                    <option>Warehousing</option>
-                                    <option>Customs Support</option>
+                                <select name="service" class="form-select @error('service') is-invalid @enderror">
+                                    <option value="" selected disabled>Select a service</option>
+                                    <option value="International Shipping"
+                                        {{ old('service') == 'International Shipping' ? 'selected' : '' }}>
+                                        International Shipping</option>
+                                    <option value="E-commerce Fulfillment"
+                                        {{ old('service') == 'E-commerce Fulfillment' ? 'selected' : '' }}>E-commerce
+                                        Fulfillment</option>
+                                    <option value="Warehousing"
+                                        {{ old('service') == 'Warehousing' ? 'selected' : '' }}>Warehousing</option>
+                                    <option value="Customs Support"
+                                        {{ old('service') == 'Customs Support' ? 'selected' : '' }}>Customs Support
+                                    </option>
                                 </select>
+                                @error('service')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="mb-4">
                                 <label class="form-label">Your Message</label>
-                                <textarea class="form-control" rows="4" placeholder="How can we help?"></textarea>
+                                <textarea name="message" class="form-control @error('message') is-invalid @enderror" rows="4"
+                                    placeholder="How can we help?">{{ old('message') }}</textarea>
+                                @error('message')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
                             <button type="submit" class="btn-send">Send Message</button>
                         </form>
@@ -311,8 +355,7 @@
                         <h2 class="fw-bold">Sent Successfully</h2>
                         <p class="text-muted">Thank you for your message. Our team will get back to you shortly.</p>
                         <button class="btn btn-outline-primary px-4 rounded-pill mt-3"
-                            onclick="location.reload()">Send
-                            another message</button>
+                            onclick="location.reload()">Send another message</button>
                     </div>
                 </div>
             </div>

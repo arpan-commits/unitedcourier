@@ -1,12 +1,12 @@
 <style>
-.submenu-two ul li a.active {
-    color: #007bff;
-    font-weight: bold;
-}
+    .submenu-two ul li a.active {
+        color: #007bff;
+        font-weight: bold;
+    }
 
-.submenu-two.active>a {
-    background-color: #f0f0f0;
-}
+    .submenu-two.active>a {
+        background-color: #f0f0f0;
+    }
 </style>
 <div class="sidebar" id="sidebar">
 
@@ -48,7 +48,8 @@
                 <li>
                     <ul>
                         <li>
-                            <a href="{{ url('/admin/dashboard') }}" class="{{ request()->is('admin/dashboard') ? 'active' : '' }}">
+                            <a href="{{ url('/admin/dashboard') }}"
+                                class="{{ request()->is('admin/dashboard') ? 'active' : '' }}">
                                 <i class="ti ti-dashboard"></i>
                                 <span>Dashboard</span>
                             </a>
@@ -73,14 +74,14 @@
                                                 class="{{ request()->is('admin/change-service') ? 'active' : '' }}">Services
                                                 Listing</a></li>
                                         <li><a href="{{ url('/admin/change-warehousing-solutions') }}"
-                                        class="{{ request()->is('admin/change-warehousing-solutions') ? 'active' : '' }}">Warehousing
-                                        Solutions</a></li>
+                                                class="{{ request()->is('admin/change-warehousing-solutions') ? 'active' : '' }}">Warehousing
+                                                Solutions</a></li>
                                         <li><a href="{{ url('/admin/change-e-commerce-logistics-solutions') }}"
-                                        class="{{ request()->is('admin/change-e-commerce-logistics-solutions') ? 'active' : '' }}">E-Commerce
-                                        Logistics Solutions</a></li>
+                                                class="{{ request()->is('admin/change-e-commerce-logistics-solutions') ? 'active' : '' }}">E-Commerce
+                                                Logistics Solutions</a></li>
                                         <li><a href="{{ url('/admin/change-express-air-freight-solutions') }}"
-                                        class="{{ request()->is('admin/change-express-air-freight-solutions') ? 'active' : '' }}">Express
-                                        Air Freight Solutions</a></li>
+                                                class="{{ request()->is('admin/change-express-air-freight-solutions') ? 'active' : '' }}">Express
+                                                Air Freight Solutions</a></li>
                                     </ul>
                                 </li>
                                 <li><a href="{{ url('/admin/change-network') }}"
@@ -110,37 +111,66 @@
                                 <li><a href="{{ url('/admin/change-blog') }}"
                                         class="{{ request()->is('admin/change-blog') ? 'active' : '' }}">Blogs</a></li>
                                 <li><a href="{{ url('/admin/change-ebook') }}"
-                                        class="{{ request()->is('admin/change-ebook') ? 'active' : '' }}">E-Books</a></li>
+                                        class="{{ request()->is('admin/change-ebook') ? 'active' : '' }}">E-Books</a>
+                                </li>
                                 <li><a href="{{ url('/admin/change-track-order') }}"
-                                        class="{{ request()->is('admin/change-track-order') ? 'active' : '' }}">Track Order</a></li>
+                                        class="{{ request()->is('admin/change-track-order') ? 'active' : '' }}">Track
+                                        Order</a></li>
                                 <li><a href="{{ url('/admin/change-webinar') }}"
-                                        class="{{ request()->is('admin/change-webinar*') ? 'active' : '' }}">Webinar</a></li>
+                                        class="{{ request()->is('admin/change-webinar*') ? 'active' : '' }}">Webinar</a>
+                                </li>
                                 <li><a href="{{ url('/admin/change-currency-calculator') }}"
-                                        class="{{ request()->is('admin/change-currency-calculator*') ? 'active' : '' }}">Currency Calculator</a></li>
+                                        class="{{ request()->is('admin/change-currency-calculator*') ? 'active' : '' }}">Currency
+                                        Calculator</a></li>
                                 <li><a href="{{ url('/admin/change-world-weather') }}"
-                                        class="{{ request()->is('admin/change-world-weather*') ? 'active' : '' }}">World Weather</a></li>
+                                        class="{{ request()->is('admin/change-world-weather*') ? 'active' : '' }}">World
+                                        Weather</a></li>
                                 <li><a href="{{ url('/admin/change-world-time') }}"
-                                        class="{{ request()->is('admin/change-world-time*') ? 'active' : '' }}">World Time</a></li>
+                                        class="{{ request()->is('admin/change-world-time*') ? 'active' : '' }}">World
+                                        Time</a></li>
                                 <li><a href="{{ url('/admin/change-partnership') }}"
-                                        class="{{ request()->is('admin/change-partnership*') ? 'active' : '' }}">Partnership</a></li>
+                                        class="{{ request()->is('admin/change-partnership*') ? 'active' : '' }}">Partnership</a>
+                                </li>
                                 <li><a href="{{ url('/admin/change-document-download') }}"
-                                        class="{{ request()->is('admin/change-document-download*') ? 'active' : '' }}">Document Download</a></li>
+                                        class="{{ request()->is('admin/change-document-download*') ? 'active' : '' }}">Document
+                                        Download</a></li>
                                 <li><a href="{{ url('/admin/change-barcode-generator') }}"
-                                        class="{{ request()->is('admin/change-barcode-generator*') ? 'active' : '' }}">Barcode Generator</a></li>
+                                        class="{{ request()->is('admin/change-barcode-generator*') ? 'active' : '' }}">Barcode
+                                        Generator</a></li>
                                 <li><a href="{{ url('/admin/change-shipping-rate-calculator') }}"
-                                        class="{{ request()->is('admin/change-shipping-rate-calculator*') ? 'active' : '' }}">Shipping Rate Calculator</a></li>
+                                        class="{{ request()->is('admin/change-shipping-rate-calculator*') ? 'active' : '' }}">Shipping
+                                        Rate Calculator</a></li>
                                 <li><a href="{{ url('/admin/change-hsn-finder') }}"
-                                        class="{{ request()->is('admin/change-hsn-finder*') ? 'active' : '' }}">HSN Finder</a></li>
+                                        class="{{ request()->is('admin/change-hsn-finder*') ? 'active' : '' }}">HSN
+                                        Finder</a></li>
                                 <li><a href="{{ url('/admin/change-common-stats') }}"
-                                        class="{{ request()->is('admin/change-common-stats*') ? 'active' : '' }}">Common Stats</a></li>
+                                        class="{{ request()->is('admin/change-common-stats*') ? 'active' : '' }}">Common
+                                        Stats</a></li>
                                 <li><a href="{{ url('/admin/change-partner-logos') }}"
-                                        class="{{ request()->is('admin/change-partner-logos*') ? 'active' : '' }}">Partner Logos</a></li>
+                                        class="{{ request()->is('admin/change-partner-logos*') ? 'active' : '' }}">Partner
+                                        Logos</a></li>
                                 <li><a href="{{ url('/admin/change-subscribers') }}"
-                                        class="{{ request()->is('admin/change-subscribers*') ? 'active' : '' }}">Subscribers</a></li>
+                                        class="{{ request()->is('admin/change-subscribers*') ? 'active' : '' }}">Subscribers</a>
+                                </li>
+                                <li><a href="{{ url('/admin/contact-us') }}"
+                                        class="{{ request()->is('admin/contact-us*') ? 'active' : '' }}">Contact Us
+                                        Form</a>
+                                </li>
+                                <li><a href="{{ url('/admin/pricing-quotes') }}"
+                                        class="{{ request()->is('admin/pricing-quotes*') ? 'active' : '' }}">Pricing
+                                        Quotes Form</a>
+                                </li>
+                                <li><a href="{{ url('/admin/partnership-form') }}"
+                                        class="{{ request()->is('admin/partnership-form*') ? 'active' : '' }}">
+                                        Partnership From</a>
+                                </li>
+
                                 <li><a href="{{ url('/admin/change-faq-queries') }}"
-                                        class="{{ request()->is('admin/change-faq-queries*') ? 'active' : '' }}">FAQ Queries</a></li>
+                                        class="{{ request()->is('admin/change-faq-queries*') ? 'active' : '' }}">FAQ
+                                        Queries</a></li>
                                 <li><a href="{{ url('/admin/faq') }}"
-                                        class="{{ request()->is('admin/faq') ? 'active' : '' }}">FAQ Management</a></li>
+                                        class="{{ request()->is('admin/faq') ? 'active' : '' }}">FAQ Management</a>
+                                </li>
                                 <!-- <li><a href="/admin/create-shipment" class="active">Add Shipment</a></li> -->
                             </ul>
                         </li>
@@ -157,7 +187,8 @@
                             </ul>
                         </li>
                         <li class="submenu">
-                            <a href="javascript:void(0);"><i class="ti ti-brand-airtable"></i><span>Shipping</span><span
+                            <a href="javascript:void(0);"><i
+                                    class="ti ti-brand-airtable"></i><span>Shipping</span><span
                                     class="menu-arrow"></span></a>
                             <ul>
                                 <li><a href="#">Create Shipment</a></li>
